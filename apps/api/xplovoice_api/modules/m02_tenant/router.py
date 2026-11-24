@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import func, select, text
+from sqlalchemy import column, func, select, table, text
 from sqlalchemy.orm import Session
 
 from ...core import audit
@@ -306,17 +306,43 @@ def accept_invite_new(data: AcceptNewIn, request: Request, session: Session = De
 
 
 # ------------------------------------------------------------------ audit (tenant scope)
+_AUDIT = table(
+    "audit_log",
+    *(
+        column(c)
+        for c in (
+            "id",
+            "tenant_id",
+            "created_at",
+            "actor_user_id",
+            "actor_kind",
+            "action",
+            "resource_type",
+            "resource_id",
+            "result",
+            "correlation_id",
+        )
+    ),
+)
+
+
 @router.get("/v1/audit-logs", response_model=list[AuditOut])
 def audit_logs(
     ctx: Ctx = Depends(require(Perm.AUDIT_READ)), limit: int = Query(50, ge=1, le=200), before_id: int | None = None
 ) -> list[AuditOut]:
-    q = (
-        "select id, created_at, actor_user_id, actor_kind, action, resource_type, resource_id, result, "
-        "correlation_id from audit_log where tenant_id = app_tenant_id()"
-    )
-    params: dict = {"limit": limit}
+    a = _AUDIT
+    stmt = select(
+        a.c.id,
+        a.c.created_at,
+        a.c.actor_user_id,
+        a.c.actor_kind,
+        a.c.action,
+        a.c.resource_type,
+        a.c.resource_id,
+        a.c.result,
+        a.c.correlation_id,
+    ).where(a.c.tenant_id == func.app_tenant_id())
     if before_id:
-        q += " and id < :before"
-        params["before"] = before_id
-    rows = ctx.session.execute(text(q + " order by id desc limit :limit"), params).mappings().all()
+        stmt = stmt.where(a.c.id < before_id)
+    rows = ctx.session.execute(stmt.order_by(a.c.id.desc()).limit(limit)).mappings().all()
     return [AuditOut(**r) for r in rows]
