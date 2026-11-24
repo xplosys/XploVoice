@@ -1,0 +1,14 @@
+# XploVoice | Copyright (c) 2026 Xplosys. All rights reserved. | Confidential - Proprietary to Xplosys
+# Default rules plus an allowlist for the published development-only credentials (local stack and tests).
+# Real secrets never live in the repository; they come from the secrets manager.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Development-only, intentionally public values"
+regexes = [
+  '''dev-only-change-me-dev-only-change-me''',
+  '''test-secret-test-secret-test-secret-1234''',
+  '''xplovoice_(app|owner):xplovoice_(app|owner)''',
+  '''postgres-(dev|ci)-only''',
+]

@@ -124,3 +124,14 @@ def test_tenant_id_in_body_is_ignored(client):
     r = client.patch("/v1/tenants/current", headers=auth(a), json={"name": "Renamed", "id": b["tenant_id"]})
     assert r.status_code == 200 and r.json()["id"] == a["tenant_id"]
     assert client.get("/v1/tenants/current", headers=auth(b)).json()["name"] == "Tenant B"
+
+
+def test_revoke_my_sessions_cannot_target_another_user(client, app_engine):
+    victim = register(client, org="Victim")
+    attacker = register(client, org="Attacker")
+    with app_engine.begin() as c:
+        me = client.get("/v1/auth/me", headers=auth(attacker)).json()["user_id"]
+        vic = client.get("/v1/auth/me", headers=auth(victim)).json()["user_id"]
+        c.execute(text("select set_config('app.user_id', :u, true)"), {"u": me})
+        assert c.execute(text("select revoke_my_sessions(:v)"), {"v": vic}).scalar_one() == 0
+    assert client.get("/v1/auth/me", headers=auth(victim)).status_code == 200

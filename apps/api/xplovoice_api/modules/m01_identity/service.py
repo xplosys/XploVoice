@@ -248,6 +248,12 @@ def revoke_family(session: Session, family_id: UUID) -> None:
     )
 
 
+def revoke_all_for_user_everywhere(session: Session, user_id: UUID) -> int:
+    """Revoke the caller's sessions in every tenant. RLS limits normal updates to the current tenant, so this
+    goes through a SECURITY DEFINER function that only acts when user_id is the authenticated user."""
+    return int(session.execute(text("select revoke_my_sessions(:u)"), {"u": user_id}).scalar_one())
+
+
 def revoke_all_for_user_in_tenant(session: Session, user_id: UUID) -> None:
     session.execute(
         update(RefreshToken)

@@ -131,5 +131,5 @@ def change_password(data: ChangePasswordIn, ctx: Ctx = Depends(get_ctx)) -> None
     if not verify_password(data.current_password, ctx.user.password_hash):
         raise unauthorized("reauth_failed", "Current password is incorrect")
     ctx.user.password_hash = hash_password(data.new_password)
-    service.revoke_all_for_user_in_tenant(ctx.session, ctx.user.id)
+    service.revoke_all_for_user_everywhere(ctx.session, ctx.user.id)
     ctx.audit("auth.password_changed", resource_type="user", resource_id=str(ctx.user.id))

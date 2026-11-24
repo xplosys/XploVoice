@@ -1,0 +1,70 @@
+# XploVoice | Copyright (c) 2026 Xplosys. All rights reserved. | Confidential - Proprietary to Xplosys
+# Security gates (Governance Handbook / LLD security section): secrets, SAST, dependency and image CVEs, SBOM.
+name: security
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 2 * * 1"
+permissions:
+  contents: read
+
+jobs:
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: gitleaks
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.21.2/gitleaks_8.21.2_linux_x64.tar.gz | tar xz gitleaks
+          ./gitleaks git --redact --exit-code 1 .
+
+  sast:
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep:1.99.0
+    steps:
+      - uses: actions/checkout@v4
+      - run: semgrep scan --config p/python --config p/typescript --config p/owasp-top-ten --error --metrics=off
+
+  dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trivy filesystem scan (HIGH/CRITICAL fail the build)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: SBOM (CycloneDX)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: cyclonedx
+          output: sbom.cdx.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.cdx.json
+
+  images:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [api, web]
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t xplovoice-${{ matrix.app }}:ci apps/${{ matrix.app }}
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: xplovoice-${{ matrix.app }}:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"

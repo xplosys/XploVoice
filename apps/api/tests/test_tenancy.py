@@ -142,3 +142,22 @@ def test_platform_admin_requires_flag_and_mfa(client, owner_engine):
     # Suspension ends the customer's sessions and blocks login.
     assert client.get("/v1/auth/me", headers=auth(customer)).status_code in (401, 403)
     assert client.post("/v1/auth/login", json={"email": customer["email"], "password": PASSWORD}).status_code == 401
+
+
+def test_password_change_revokes_sessions_in_every_org(client):
+    a = register(client, org="Org A")
+    b = register(client, org="Org B")
+    inv = client.post("/v1/invitations", headers=auth(b), json={"email": a["email"], "role": "operator"})
+    token = inv.json()["accept_url"].split("token=")[1]
+    in_b = client.post("/v1/invitations/accept", headers=auth(a), json={"token": token}).json()
+    in_a = client.post(
+        "/v1/auth/login", json={"email": a["email"], "password": PASSWORD, "tenant_id": a["tenant_id"]}
+    ).json()
+    r = client.post(
+        "/v1/auth/password",
+        headers=auth(in_a),
+        json={"current_password": PASSWORD, "new_password": "N3w-Str0ng-Passw0rd!"},
+    )
+    assert r.status_code == 204
+    assert client.get("/v1/auth/me", headers=auth(in_b)).status_code == 401
+    assert client.post("/v1/auth/refresh", json={"refresh_token": in_b["refresh_token"]}).status_code == 401

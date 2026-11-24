@@ -183,6 +183,16 @@ returns table (tenant_id uuid) language sql stable security definer set search_p
   select i.tenant_id from invitations i
   where i.token_hash = p_hash and i.accepted_at is null and i.revoked_at is null and i.expires_at > now()
 $$;
+-- Revokes every live session of the calling user across all tenants (password change). Callable only for
+-- yourself: the predicate pins p_user to the authenticated user from the transaction context.
+create or replace function revoke_my_sessions(p_user uuid)
+returns integer language sql volatile security definer set search_path = public as $$
+  with r as (
+    update refresh_tokens set revoked_at = now()
+    where user_id = p_user and p_user = app_user_id() and revoked_at is null
+    returning 1
+  ) select count(*)::integer from r
+$$;
 create or replace function slug_available(p_slug text)
 returns boolean language sql stable security definer set search_path = public as $$
   select not exists (select 1 from tenants where slug = p_slug)
@@ -199,25 +209,30 @@ begin
     grant delete on refresh_tokens to xplovoice_app;
     grant select, insert on audit_log to xplovoice_app;   -- append-only
     grant execute on function app_tenant_id(), app_user_id(), app_platform_admin(),
-      lookup_refresh_token(text), lookup_invitation(text), slug_available(text) to xplovoice_app;
+      lookup_refresh_token(text), lookup_invitation(text), slug_available(text), revoke_my_sessions(uuid)
+      to xplovoice_app;
   end if;
 end $$;
-revoke execute on function lookup_refresh_token(text), lookup_invitation(text), slug_available(text) from public;
+revoke execute on function lookup_refresh_token(text), lookup_invitation(text), slug_available(text),
+  revoke_my_sessions(uuid) from public;
 do $$
 begin
   if exists (select 1 from pg_roles where rolname = 'xplovoice_definer') then
     grant usage, create on schema public to xplovoice_definer;
-    grant select (tenant_id, user_id, token_hash) on refresh_tokens to xplovoice_definer;
+    grant select (tenant_id, user_id, token_hash, revoked_at) on refresh_tokens to xplovoice_definer;
+    grant update (revoked_at) on refresh_tokens to xplovoice_definer;
     grant select (tenant_id, token_hash, accepted_at, revoked_at, expires_at) on invitations to xplovoice_definer;
     grant select (slug) on tenants to xplovoice_definer;
     alter function lookup_refresh_token(text) owner to xplovoice_definer;
     alter function lookup_invitation(text) owner to xplovoice_definer;
     alter function slug_available(text) owner to xplovoice_definer;
+    alter function revoke_my_sessions(uuid) owner to xplovoice_definer;
   end if;
 end $$;
 """
 
 DOWNGRADE = r"""
+drop function if exists revoke_my_sessions(uuid);
 drop function if exists slug_available(text);
 drop function if exists lookup_invitation(text);
 drop function if exists lookup_refresh_token(text);

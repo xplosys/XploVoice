@@ -5,8 +5,8 @@
 --   xplovoice_app   : runtime role. NOSUPERUSER NOBYPASSRLS, so row-level security always applies.
 create role xplovoice_owner login password 'xplovoice_owner' nosuperuser nobypassrls nocreaterole;
 create role xplovoice_app login password 'xplovoice_app' nosuperuser nobypassrls nocreaterole nocreatedb;
--- xplovoice_definer: NOLOGIN. Owns only the three narrow SECURITY DEFINER lookups that must run before a
--- tenant context exists (refresh-token owner, invitation tenant, slug availability). It needs BYPASSRLS
+-- xplovoice_definer: NOLOGIN. Owns only the narrow SECURITY DEFINER functions that must bypass tenant RLS:
+-- refresh-token owner, invitation tenant, slug availability, revoking your own sessions. It needs BYPASSRLS
 -- because FORCE ROW LEVEL SECURITY also applies to the table owner. Nobody can log in as it.
 create role xplovoice_definer nologin bypassrls;
 grant xplovoice_definer to xplovoice_owner;

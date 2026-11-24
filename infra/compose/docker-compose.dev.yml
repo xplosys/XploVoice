@@ -1,0 +1,54 @@
+# XploVoice | Copyright (c) 2026 Xplosys. All rights reserved. | Confidential - Proprietary to Xplosys
+# Local development stack. Development credentials only; never reuse them outside a developer machine.
+# Usage (from the repo root): docker compose -f infra/compose/docker-compose.dev.yml up --build
+name: xplovoice
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_PASSWORD: postgres-dev-only
+    volumes:
+      - ./postgres-init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    ports: ["127.0.0.1:5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d xplovoice"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports: ["127.0.0.1:6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+
+  migrate:
+    build: ../../apps/api
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      XV_ENVIRONMENT: development
+      XV_MIGRATION_DATABASE_URL: postgresql+psycopg://xplovoice_owner:xplovoice_owner@postgres:5432/xplovoice
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    build: ../../apps/api
+    env_file: ../../apps/api/.env.example
+    environment:
+      XV_DATABASE_URL: postgresql+psycopg://xplovoice_app:xplovoice_app@postgres:5432/xplovoice
+      XV_REDIS_URL: redis://redis:6379/0
+    ports: ["127.0.0.1:8000:8000"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  web:
+    build: ../../apps/web
+    environment:
+      XV_API_INTERNAL_URL: http://api:8000
+    ports: ["127.0.0.1:3000:3000"]
+    depends_on: [api]
+
+volumes:
+  pgdata:

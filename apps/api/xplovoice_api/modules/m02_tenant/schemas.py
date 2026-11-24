@@ -42,7 +42,7 @@ class TenantPatch(BaseModel):
         try:
             n = phonenumbers.parse(v, None)
         except phonenumbers.NumberParseException:
-            raise ValueError("Use international format, for example +919876543210") from None
+            raise ValueError("Use international format with the country code, for example +14155550100") from None
         if not phonenumbers.is_valid_number(n):
             raise ValueError("Not a valid phone number")
         return phonenumbers.format_number(n, phonenumbers.PhoneNumberFormat.E164)

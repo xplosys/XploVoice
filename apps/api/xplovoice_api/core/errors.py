@@ -25,7 +25,7 @@ def conflict(code: str, message: str) -> ApiError:
 
 
 def bad_request(code: str, message: str) -> ApiError:
-    return ApiError(status.HTTP_422_UNPROCESSABLE_ENTITY, code, message)
+    return ApiError(status.HTTP_422_UNPROCESSABLE_CONTENT, code, message)
 
 
 def too_many(message: str = "Too many attempts. Try again later.") -> ApiError:
