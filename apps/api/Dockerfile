@@ -10,7 +10,9 @@ COPY . .
 RUN uv sync --frozen --no-dev
 
 FROM python:3.13-slim
-RUN useradd --system --uid 10001 --home /app xplovoice
+# pip is not needed at runtime and carries its own vendored libraries; remove it to shrink the attack surface.
+RUN python -m pip uninstall -y pip setuptools wheel 2>/dev/null; rm -rf /usr/local/lib/python3.13/site-packages/pip* \
+    && useradd --system --uid 10001 --home /app xplovoice
 WORKDIR /app
 COPY --from=build /opt/venv /opt/venv
 COPY --from=build /app /app
