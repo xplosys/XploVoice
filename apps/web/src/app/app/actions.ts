@@ -96,8 +96,9 @@ export async function mfaVerifyAction(_: ActionState, f: FormData): Promise<Acti
   } catch (e) {
     return failure(e);
   }
+  // The page switches from the setup form to the disable form, so confirm through the URL.
   revalidatePath("/app", "layout");
-  return { ok: "Two-factor authentication is on. You will be asked for a code at your next sign-in." };
+  redirect("/app/security?mfa=on");
 }
 
 export async function mfaDisableAction(_: ActionState, f: FormData): Promise<ActionState> {
@@ -109,7 +110,7 @@ export async function mfaDisableAction(_: ActionState, f: FormData): Promise<Act
     return failure(e);
   }
   revalidatePath("/app", "layout");
-  return { ok: "Two-factor authentication is off." };
+  redirect("/app/security?mfa=off");
 }
 
 export async function changePasswordAction(_: ActionState, f: FormData): Promise<ActionState> {
