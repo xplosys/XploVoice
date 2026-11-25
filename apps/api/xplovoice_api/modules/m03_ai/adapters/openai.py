@@ -97,13 +97,13 @@ class OpenAISpeech(TTSAdapter):
     async def synthesize(
         self, ep: Endpoint, *, model: str, text: str, voice: str | None, language: str | None
     ) -> TTSResult:
-        body = {"model": model, "input": text, "voice": voice or "alloy", "response_format": "mp3"}
+        body = {"model": model, "input": text, "voice": voice or "alloy", "response_format": "wav"}
         try:
             r = await http().post(f"{ep.base_url}/audio/speech", headers=_headers(ep), json=body)
         except httpx.TransportError as e:
             raise ProviderError(f"openai-tts: connection failed ({type(e).__name__})") from None
         raise_for(r, "openai-tts")
-        return TTSResult(audio=r.content, mime="audio/mpeg", characters=len(text))
+        return TTSResult(audio=r.content, mime="audio/wav", characters=len(text))
 
     async def verify(self, ep: Endpoint) -> bool | None:
         return await OpenAIChat().verify(ep)

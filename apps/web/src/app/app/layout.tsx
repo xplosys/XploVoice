@@ -23,10 +23,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     ...(can(me, "ai:read") ? [{ href: "/app/ai", label: "AI providers" }] : []),
     ...(can(me, "ai:test") ? [{ href: "/app/ai/playground", label: "AI playground" }] : []),
     ...(can(me, "usage:read") ? [{ href: "/app/usage", label: "Usage" }] : []),
-    { href: "/app/agents", label: "Voice agents", phase: 4 },
+    ...(can(me, "agents:read") ? [{ href: "/app/agents", label: "Voice agents" }] : []),
+    ...(can(me, "calls:read") ? [{ href: "/app/calls", label: "Calls" }] : []),
     { href: "/app/knowledge", label: "Knowledge base", phase: 5 },
     { href: "/app/numbers", label: "Phone numbers", phase: 6 },
-    { href: "/app/calls", label: "Calls", phase: 6 },
     { href: "/app/billing", label: "Billing", phase: 7 },
   ];
   return (

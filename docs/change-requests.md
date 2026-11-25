@@ -20,18 +20,18 @@ approved the build to proceed on the proposal; the formal baseline document stil
 | CR | Missing specification | Modules | Priority | Status |
 |---|---|---|---|---|
 | CR-001 | Core LLD for M01–M18 | M01–M18 | Blocker | Accepted (provisional IDs); M01, M02, M17, M18 slices implemented |
-| CR-002 | Common engine + channel adapter contract, incl. browser WebRTC | M09, M10 | High | Open |
-| CR-003 | 15-state call lifecycle, idempotent order-tolerant events | M04, M08 | High | Open |
-| CR-004 | Latency instrumentation and benchmark workload | M10, M18 | High | Open |
+| CR-002 | Common engine + channel adapter contract, incl. browser WebRTC | M09, M10 | High | Implemented for browser (ADR-0006); SIP adapter in Phase 6 |
+| CR-003 | 15-state call lifecycle, idempotent order-tolerant events | M04, M08 | High | Partial: 8-state browser subset, order-tolerant and idempotent; telephony states in Phase 6 |
+| CR-004 | Latency instrumentation and benchmark workload | M10, M18 | High | Partial: per-stage timing on every call, first benchmark with mock providers; real-vendor run, Silero VAD and streaming STT pending |
 | CR-005 | Carrier adapters, capability registry, trunks, DIDs, destination policies | M04 | High | Open |
 | CR-006 | Agent version schema; 5-state lifecycle | M05 | High | Open |
 | CR-007 | Tool gateway and RAG authorization | M09, M12 | High | Open |
 | CR-008 | Native workflows: follow-ups, holiday calendars, support tickets | M11, M13, M14 | Medium | Open |
 | CR-009 | Inbound routing + queues; outbound policy engine, suppression, dial attempts | M06, M07 | High | Open |
-| CR-010 | Worker and queue spec: heartbeats, DLQ, backpressure, regional routing | M10 | High | Open |
+| CR-010 | Worker and queue spec: heartbeats, DLQ, backpressure, regional routing | M10 | High | Partial: Redis-stream dispatch, heartbeats, lease takeover, per-worker call limit; DLQ and regional routing open |
 | CR-011 | Consent, retention, recording audit for standard tenants | M22, M24 | Medium | Open |
-| CR-012 | Platform-wide fallback chains and circuit breakers | M03, M04, M09 | High | Partial: AI gateway fallback and breaker (ADR-0005); telephony and engine in Phases 3 and 6 |
-| CR-013 | Concurrency, capacity and admission control | M10, M15 | High | Open |
+| CR-012 | Platform-wide fallback chains and circuit breakers | M03, M04, M09 | High | Partial: AI gateway fallback and breaker (ADR-0005); engine plays a fixed message and ends cleanly (Phase 3); telephony in Phase 6 |
+| CR-013 | Concurrency, capacity and admission control | M10, M15 | High | Partial: per-tenant live-call limit and per-worker call limit |
 | CR-014 | Per-call trace span model and monitoring catalogue | M18, M16 | Medium | Open |
 | CR-015 | Core acceptance test catalogue (VX-xxx) | All | High | Open |
 | CR-016 | Hinglish and country/language registry | M02, M03 | Medium | Partial: registry in `m02_tenant/regional.py` lists `hi-Latn-IN` |

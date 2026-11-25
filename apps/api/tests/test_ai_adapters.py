@@ -14,7 +14,14 @@ import pytest
 
 from xplovoice_api.modules.m03_ai.adapters import base
 from xplovoice_api.modules.m03_ai.adapters.anthropic import AnthropicChat
-from xplovoice_api.modules.m03_ai.adapters.base import ChatMessage, Endpoint, LLMRequest, LLMUsage, ProviderError
+from xplovoice_api.modules.m03_ai.adapters.base import (
+    ChatMessage,
+    Endpoint,
+    LLMRequest,
+    LLMUsage,
+    ProviderError,
+    wav_seconds,
+)
 from xplovoice_api.modules.m03_ai.adapters.deepgram import DeepgramSTT
 from xplovoice_api.modules.m03_ai.adapters.elevenlabs import ElevenLabsTTS
 from xplovoice_api.modules.m03_ai.adapters.openai import OpenAIChat, OpenAITranscribe
@@ -132,16 +139,17 @@ def test_deepgram_parses_transcript_and_duration(transport):
     assert seen[0].headers["authorization"] == "Token dgk" and seen[0].url.params["language"] == "en-US"
 
 
-def test_elevenlabs_returns_audio_and_characters(transport):
+def test_elevenlabs_returns_wav_audio_and_characters(transport):
     seen, h = transport
-    h["fn"] = lambda r: httpx.Response(200, content=b"ID3fake", headers={"content-type": "audio/mpeg"})
+    h["fn"] = lambda r: httpx.Response(200, content=b"\x00\x00" * 1600, headers={"content-type": "audio/pcm"})
     r = asyncio.run(
         ElevenLabsTTS().synthesize(
             Endpoint("https://el.example", "xik"), model="multi", text="Hello!", voice="v1", language="en-US"
         )
     )
-    assert r.audio == b"ID3fake" and r.characters == 6
+    assert r.mime == "audio/wav" and wav_seconds(r.audio) == 0.1 and r.characters == 6
     assert seen[0].url.path == "/v1/text-to-speech/v1" and seen[0].headers["xi-api-key"] == "xik"
+    assert seen[0].url.params["output_format"] == "pcm_16000"
 
 
 def test_sarvam_tts_decodes_base64_and_stt_meters_wav_length(transport):

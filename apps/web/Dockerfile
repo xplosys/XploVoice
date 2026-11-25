@@ -6,7 +6,8 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
+ARG XV_LIVEKIT_PUBLIC_URL=ws://localhost:7880
+ENV NEXT_TELEMETRY_DISABLED=1 XV_LIVEKIT_PUBLIC_URL=${XV_LIVEKIT_PUBLIC_URL}
 RUN pnpm build
 
 FROM node:22-alpine

@@ -86,7 +86,7 @@ def _backoff(n: int) -> float:
     return min(2.0, 0.2 * (2**n)) + random.uniform(0, 0.1)  # noqa: S311 - jitter, not security
 
 
-async def _meter(m: Meter, c: Candidate, kind: str, units: dict[str, float]) -> None:
+async def _meter(m: Meter, c: Candidate, kind: str, units: dict[str, float], *, estimated: bool = False) -> None:
     def write() -> None:
         metering.record(
             m.session,
@@ -101,9 +101,15 @@ async def _meter(m: Meter, c: Candidate, kind: str, units: dict[str, float]) -> 
             source_type=m.source_type,
             source_id=m.source_id,
             correlation_id=m.correlation_id,
+            estimated=estimated,
         )
 
     await run_in_threadpool(write)
+
+
+def estimate_tokens(chars: int) -> int:
+    """Rough token count (about four characters per token) used only when a provider never reported usage."""
+    return max(1, -(-chars // 4))
 
 
 async def _route(m: Meter, kind: str, **filters: Any) -> tuple[list[Candidate], list[Skipped]]:
@@ -212,6 +218,7 @@ async def chat_stream(
             stream = adapter.stream_chat(c.endpoint, model_req)
             started = False
             usage: LLMUsage | None = None
+            out_chars = 0
             try:
                 async with asyncio.timeout(timeout):
                     async for ev in stream:
@@ -219,9 +226,31 @@ async def chat_stream(
                             if not started:
                                 started = True
                                 LATENCY.labels("llm", c.provider.key).observe(time.perf_counter() - start)
+                            out_chars += len(ev.text)
                             yield ev.text
                         elif isinstance(ev, LLMUsage):
                             usage = ev
+            except (GeneratorExit, asyncio.CancelledError):
+                # The consumer stopped early (barge-in, hang-up). Close the provider stream, then meter what was
+                # consumed: the provider's figure when it sent one, otherwise a flagged estimate.
+                await stream.aclose()  # type: ignore[attr-defined]
+                if started:
+                    if usage:
+                        units = {"input_token": usage.input_tokens, "output_token": usage.output_tokens}
+                        await _meter(m, c, "llm", units)
+                    else:
+                        in_chars = sum(len(msg.content) for msg in req.messages)
+                        units = {"input_token": estimate_tokens(in_chars), "output_token": estimate_tokens(out_chars)}
+                        await _meter(m, c, "llm", units, estimated=True)
+                    breaker.success(c.provider.key)
+                    if outcome is not None:
+                        outcome.provider, outcome.model, outcome.account = (
+                            c.provider.name,
+                            c.model.display_name,
+                            c.account,
+                        )
+                        outcome.attempts, outcome.skipped, outcome.units = attempts, skipped, units
+                raise
             except (ProviderError, TimeoutError) as e:
                 err = e if isinstance(e, ProviderError) else ProviderError(f"{c.provider.key}: timed out")
                 ms = int((time.perf_counter() - start) * 1000)

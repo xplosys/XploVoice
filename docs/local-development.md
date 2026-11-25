@@ -32,3 +32,21 @@ because outbound email has no provider yet. In production the link is never retu
 
 There is no self-service way to become a platform admin. Set `users.is_platform_admin = true` with the owner role, then
 sign in with two-factor authentication turned on.
+
+## Voice calls (Phase 3)
+
+Docker Compose also starts `livekit`, a local LiveKit server on ports 7880, 7881 and 7882/udp, and `voice-worker`.
+
+To place a browser test call:
+1. Set the LLM, STT and TTS to the Mock models on **AI providers**.
+2. Create an agent under **Voice agents**.
+3. Press **Test call** and allow the microphone.
+
+The mock voice answers with soft tones instead of words.
+
+Without Docker, run the worker next to the API with `uv run python -m xplovoice_worker`. It needs a LiveKit server
+at `XV_LIVEKIT_URL`.
+
+Tests and the benchmark use a scripted caller made of synthetic audio instead of LiveKit. It is development and
+test only:
+`XV_WORKER_CHANNEL=scripted XV_WORKER_SCRIPT="silence:2000,tone:800,silence:3000" uv run python -m xplovoice_worker`.

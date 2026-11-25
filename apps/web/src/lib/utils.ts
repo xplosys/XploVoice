@@ -12,3 +12,7 @@ export function fmtQty(q: string | number, unit: string): string {
   const name = unit.replace("_", " ");
   return `${n.toLocaleString()} ${name}${n === 1 ? "" : "s"}`;
 }
+
+/** Badge colour for a call status. */
+export const callTone = (s: string) =>
+  s === "completed" ? "green" : s === "failed" ? "red" : s === "abandoned" ? "slate" : "brand";

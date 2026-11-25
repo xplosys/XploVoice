@@ -28,6 +28,7 @@ def record(
     source_id: str | None = None,
     correlation_id: str | None = None,
     occurred_at: datetime | None = None,
+    estimated: bool = False,
 ) -> list[int]:
     """Returns the ids of newly written usage events (empty when this key was already recorded)."""
     written: list[int] = []
@@ -37,8 +38,8 @@ def record(
         row = session.execute(
             text(
                 "insert into usage_events (tenant_id, idempotency_key, occurred_at, kind, provider_id, model_id, "
-                "account, credential_id, unit, quantity, source_type, source_id, correlation_id) values "
-                "(:t, :k, coalesce(:at, now()), :kind, :p, :m, :acct, :c, :unit, :q, :st, :sid, :cid) "
+                "account, credential_id, unit, quantity, source_type, source_id, correlation_id, estimated) values "
+                "(:t, :k, coalesce(:at, now()), :kind, :p, :m, :acct, :c, :unit, :q, :st, :sid, :cid, :est) "
                 "on conflict (tenant_id, idempotency_key, unit) do nothing returning id, occurred_at"
             ),
             {
@@ -55,6 +56,7 @@ def record(
                 "st": source_type,
                 "sid": source_id,
                 "cid": correlation_id,
+                "est": estimated,
             },
         ).first()
         if row is None:

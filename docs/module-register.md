@@ -15,12 +15,12 @@ later phase), *planned*, *awaiting configuration* (code path exists but needs a 
 | M02 | Tenants, members, invitations, regional settings | 1 | done | `modules/m02_tenant`; invitation email is awaiting configuration (dev returns the link) |
 | M03 | AI provider registry and gateway | 2 | done | `modules/m03_ai`: catalog, adapters (OpenAI, Anthropic, Deepgram, ElevenLabs, Sarvam, OpenAI-compatible self-hosted, Piper, dev-only mock), tenant routing, failover, circuit breaker, encrypted customer keys, admin catalog console. Managed vendor accounts and price lists are awaiting configuration |
 | M04 | Telephony carriers, trunks, numbers | 6 | planned | Carrier onboarding to start early (X-4) |
-| M05 | Agent builder and versioning | 4 | planned | |
+| M05 | Agent builder and versioning | 3, 4 | partial | Phase 3 minimal agents with immutable versions (`modules/m05_agents`); full builder in Phase 4 |
 | M06 | Inbound routing and queues | 6 | planned | |
 | M07 | Outbound campaigns | 6 | planned | After M22-core (X-2, CR-023) |
-| M08 | Call sessions and lifecycle | 3 | planned | |
-| M09 | Conversation engine (STT → LLM → TTS) | 3 | planned | |
-| M10 | Voice workers and real-time media | 3 | planned | |
+| M08 | Call sessions and lifecycle | 3 | done (Phase 3 scope) | `modules/m08_calls`: calls, order-tolerant lifecycle, append-only events and transcripts; telephony states in Phase 6 |
+| M09 | Conversation engine (STT → LLM → TTS) | 3 | done (Phase 3 scope) | `xplovoice_engine`: turn-taking, barge-in, clause-streamed TTS, guards, per-stage timing; tools and RAG in Phase 5 |
+| M10 | Voice workers and real-time media | 3 | done (Phase 3 scope) | `xplovoice_worker`: LiveKit channel, Redis-stream dispatch with lease takeover; LiveKit hosting choice open (ADR-0006) |
 | M11 | Workflows and follow-ups | 5 | planned | |
 | M12 | Knowledge base and retrieval | 5 | planned | |
 | M13 | Integrations | 5 | planned | |
@@ -60,3 +60,20 @@ later phase), *planned*, *awaiting configuration* (code path exists but needs a 
 | Addendum (no invented vendors or prices) | Unconfigured vendors shown as awaiting configuration; no seeded commercial prices | `0002_ai_providers.py` | `test_catalog_marks_unconfigured_providers_awaiting_configuration` |
 | HLD v1.3 healthcare | PHI routing only to providers with a signed BAA | `0002_ai_providers.py` check, `m03_ai/admin.py` | `test_admin_catalog_management_requires_mfa_admin_and_baa_for_phi` |
 | Master prompt environments | Mock provider refused outside development and test | `m03_ai/routing.py` | `test_mock_provider_is_refused_in_production_like_environments` |
+
+## Requirement traceability (Phase 3)
+
+| Requirement source | Requirement | Implementation | Test |
+|---|---|---|---|
+| MP §6, Phase 0 §E | One engine for every channel; channel adapter is the only channel-aware part | `xplovoice_engine/channel.py`, `xplovoice_worker/livekit_channel.py` | `test_browser_call_end_to_end_through_api_and_gateway` |
+| MP §7, Phase 0 §G | Barge-in cuts speech; only heard words enter history | `xplovoice_engine/session.py` | `test_barge_in_cuts_reply_and_keeps_only_spoken_words`, `test_short_backchannel_does_not_interrupt` |
+| Phase 0 §G | TTS starts on the first clause | `xplovoice_engine/clauses.py` | `test_clause_splitter_starts_speech_on_first_clause` |
+| Phase 3 gate | Worker kill-and-recover | `xplovoice_worker/queue.py`, `m08_calls/internal.py` | `test_worker_killed_mid_call_is_recovered_by_another_worker` (SIGKILL) |
+| Phase 3 gate | First latency benchmark | `scripts/voice_benchmark.py` | [benchmark](benchmarks/phase-3-latency.md) |
+| MP §9 | Calls pin an immutable agent version | `0003_voice_engine.py`, `m05_agents` | `test_agent_versions_are_immutable_and_calls_pin_them` |
+| CR-003 | Order-tolerant, idempotent call events | `m08_calls/lifecycle.py` | `test_late_or_repeated_state_updates_never_move_a_call_backwards`, `test_recording_is_idempotent` |
+| CR-012 | No provider: fixed message, clean end | `xplovoice_engine/session.py` | `test_no_provider_plays_fixed_message_and_ends`, `test_call_with_no_provider_ends_cleanly_as_failed` |
+| Phase 0 §H voice sessions | Room-scoped, short-lived tokens; opaque rooms | `m08_calls/livekit.py` | `test_voice_session_token_is_scoped_short_lived_and_dispatched` |
+| LLD v1.3 §5 | Workers use only /internal/v1 with a worker credential scoped to one call | `m08_calls/internal.py` | `test_internal_api_requires_worker_key_and_matching_call_token` |
+| LLD v1.3 §4 | Calls, transcripts, agents isolated per tenant | `0003_voice_engine.py` (FORCE RLS) | `test_calls_are_isolated_between_tenants`, `test_every_tenant_table_has_forced_rls` |
+| Phase 0 §E guards | Per-call duration and silence limits | `xplovoice_engine/session.py` | `test_max_duration_guard`, `test_silence_prompts_then_ends` |

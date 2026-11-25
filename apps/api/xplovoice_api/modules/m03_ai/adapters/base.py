@@ -146,3 +146,17 @@ def wav_seconds(audio: bytes) -> float | None:
             return w.getnframes() / float(w.getframerate())
     except (wave.Error, EOFError):
         return None
+
+
+def pcm16_to_wav(pcm: bytes, rate: int) -> bytes:
+    """Wraps raw 16-bit mono PCM in a WAV header. Voice calls need uncompressed audio they can stream."""
+    import io
+    import wave
+
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(rate)
+        w.writeframes(pcm)
+    return buf.getvalue()

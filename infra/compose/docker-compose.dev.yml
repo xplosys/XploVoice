@@ -38,13 +38,44 @@ services:
     environment:
       XV_DATABASE_URL: postgresql+psycopg://xplovoice_app:xplovoice_app@postgres:5432/xplovoice
       XV_REDIS_URL: redis://redis:6379/0
+      XV_LIVEKIT_URL: ws://localhost:7880           # what the browser uses
+      XV_LIVEKIT_INTERNAL_URL: ws://127.0.0.1:7880  # what the worker uses (it shares LiveKit's network)
     ports: ["127.0.0.1:8000:8000"]
     depends_on:
       migrate: { condition: service_completed_successfully }
       redis: { condition: service_healthy }
 
+  # Phase 3: LiveKit carries browser (and later SIP) audio. ADR-0006.
+  livekit:
+    image: livekit/livekit-server:v1.13.11
+    command: ["--config", "/etc/livekit.yaml"]
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "127.0.0.1:7880:7880"
+      - "127.0.0.1:7881:7881"
+      - "127.0.0.1:7882:7882/udp"
+
+  # Voice worker: same image as the API, different process. It shares LiveKit's network namespace so the
+  # media address LiveKit advertises (127.0.0.1) is reachable from both the browser and the worker.
+  voice-worker:
+    build: ../../apps/api
+    command: ["python", "-m", "xplovoice_worker"]
+    network_mode: "service:livekit"
+    environment:
+      XV_ENVIRONMENT: development
+      XV_REDIS_URL: redis://redis:6379/0
+      XV_INTERNAL_API_URL: http://api:8000
+      XV_WORKER_KEY: dev-only-worker-key
+    depends_on:
+      api: { condition: service_started }
+      livekit: { condition: service_started }
+
   web:
-    build: ../../apps/web
+    build:
+      context: ../../apps/web
+      args:
+        XV_LIVEKIT_PUBLIC_URL: ws://localhost:7880
     environment:
       XV_API_INTERNAL_URL: http://api:8000
     ports: ["127.0.0.1:3000:3000"]

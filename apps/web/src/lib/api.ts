@@ -95,3 +95,20 @@ export type UsageRow = { day: string; kind: string; provider: string; model: str
   quantity: string; cost: string | null; currency: string | null; unpriced_events: number };
 export type UsageEvent = { id: number; occurred_at: string; kind: string; provider: string; model: string; account: string;
   unit: string; quantity: string; source_type: string; cost: string | null; currency: string | null; borne_by: string | null };
+
+export type AgentConfig = {
+  greeting: string; instructions: string; language: "en-IN" | "hi-IN" | "hi-Latn-IN" | "en-US"; voice: string | null;
+  max_call_seconds: number; silence_timeout_seconds: number; endpoint_silence_ms: number; barge_in_min_ms: number;
+  interruptible: boolean;
+};
+export type Agent = { id: string; name: string; status: string; version: number; version_id: string; config: AgentConfig;
+  updated_at: string };
+export type AgentVersion = { id: string; version: number; created_at: string };
+export type VoiceSession = { call_id: string; room: string; livekit_url: string; token: string; expires_in: number };
+export type CallRow = { id: string; agent_id: string; agent_name: string; agent_version: number; channel: string;
+  direction: string; status: string; end_reason: string | null; language: string | null; created_at: string;
+  connected_at: string | null; ended_at: string | null; duration_seconds: string | null; recoveries: number };
+export type CallSegment = { seq: number; speaker: "caller" | "agent"; text: string; language: string | null;
+  start_ms: number | null; end_ms: number | null; interrupted: boolean };
+export type CallEvent = { type: string; data: Record<string, unknown>; occurred_at: string };
+export type CallDetail = CallRow & { transcript: CallSegment[]; events: CallEvent[] };

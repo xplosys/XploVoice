@@ -14,6 +14,7 @@ class Perm(StrEnum):
     AGENTS_READ = "agents:read"
     AGENTS_MANAGE = "agents:manage"
     CALLS_READ = "calls:read"
+    CALLS_TEST = "calls:test"
     BILLING_MANAGE = "billing:manage"
     AI_READ = "ai:read"
     AI_MANAGE = "ai:manage"
@@ -31,6 +32,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
             Perm.AGENTS_READ,
             Perm.AGENTS_MANAGE,
             Perm.CALLS_READ,
+            Perm.CALLS_TEST,
             Perm.AI_READ,
             Perm.AI_TEST,
         }

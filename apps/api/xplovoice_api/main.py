@@ -15,6 +15,9 @@ from .modules.m01_identity.router import router as identity_router
 from .modules.m02_tenant.router import router as tenant_router
 from .modules.m03_ai.admin import router as ai_admin_router
 from .modules.m03_ai.router import router as ai_router
+from .modules.m05_agents.router import router as agents_router
+from .modules.m08_calls.internal import router as worker_router
+from .modules.m08_calls.router import router as calls_router
 from .modules.m15_usage.router import router as usage_router
 from .modules.m17_admin.router import router as admin_router
 from .modules.m18_ops.router import router as ops_router
@@ -39,7 +42,7 @@ def create_app() -> FastAPI:
         allow_origins=settings.cors_origins,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
-        allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Idempotency-Key"],
+        allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Idempotency-Key"],  # never X-Worker-Key
     )
 
     @app.middleware("http")
@@ -63,7 +66,18 @@ def create_app() -> FastAPI:
             response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains; preload"
         return response
 
-    for r in (ops_router, identity_router, tenant_router, ai_router, usage_router, admin_router, ai_admin_router):
+    for r in (
+        ops_router,
+        identity_router,
+        tenant_router,
+        ai_router,
+        usage_router,
+        agents_router,
+        calls_router,
+        worker_router,
+        admin_router,
+        ai_admin_router,
+    ):
         app.include_router(r)
     FastAPIInstrumentor.instrument_app(app, excluded_urls="healthz,readyz,metrics")
     return app

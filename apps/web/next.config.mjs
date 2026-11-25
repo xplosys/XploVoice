@@ -1,5 +1,9 @@
 // XploVoice | Copyright (c) 2026 Xplosys. All rights reserved. | Confidential - Proprietary to Xplosys
 const isDev = process.env.NODE_ENV !== "production";
+// Browser test calls connect to LiveKit directly (signalling over WebSocket, plus its HTTP validation endpoint).
+// Set at build time; the development default is the local LiveKit server from infra/compose.
+const livekit = (process.env.XV_LIVEKIT_PUBLIC_URL ?? "ws://localhost:7880").replace(/\/$/, "");
+const livekitHttp = livekit.replace(/^ws/, "http");
 const csp = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
@@ -7,7 +11,7 @@ const csp = [
   "img-src 'self' data:",
   "media-src 'self' data: blob:",
   "font-src 'self'",
-  "connect-src 'self'",
+  `connect-src 'self' ${livekit} ${livekitHttp}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

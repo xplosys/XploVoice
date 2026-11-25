@@ -12,3 +12,5 @@ node_modules/
 coverage/
 *.log
 tsconfig.tsbuildinfo
+# Redis snapshots written by a local redis-server
+dump.rdb

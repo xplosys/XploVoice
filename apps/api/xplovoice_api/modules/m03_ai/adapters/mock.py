@@ -2,8 +2,7 @@
 """Deterministic mock provider for development and automated tests ONLY. The router refuses it in staging and
 production. Failure can be injected through Endpoint.extra for failover tests."""
 
-import io
-import wave
+import math
 from collections.abc import AsyncIterator
 
 from .base import (
@@ -18,6 +17,7 @@ from .base import (
     TextDelta,
     TTSAdapter,
     TTSResult,
+    pcm16_to_wav,
     wav_seconds,
 )
 
@@ -59,10 +59,11 @@ class MockTTS(TTSAdapter):
         self, ep: Endpoint, *, model: str, text: str, voice: str | None, language: str | None
     ) -> TTSResult:
         _fail("tts")
-        buf = io.BytesIO()
-        with wave.open(buf, "wb") as w:  # silent 16 kHz mono clip, 60 ms per word
-            w.setnchannels(1)
-            w.setsampwidth(2)
-            w.setframerate(16000)
-            w.writeframes(b"\x00\x00" * 960 * max(1, len(text.split())))
-        return TTSResult(audio=buf.getvalue(), mime="audio/wav", characters=len(text))
+        # 16 kHz mono: a soft 180 ms tone and 60 ms gap per word, so a browser test call is audible.
+        tone = b"".join(
+            int(1500 * math.sin(2 * math.pi * 330 * i / 16000)).to_bytes(2, "little", signed=True) for i in range(2880)
+        )
+        word = tone + b"\x00\x00" * 960
+        return TTSResult(
+            audio=pcm16_to_wav(word * max(1, len(text.split())), 16000), mime="audio/wav", characters=len(text)
+        )
