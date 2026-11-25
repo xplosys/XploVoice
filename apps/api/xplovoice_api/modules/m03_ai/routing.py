@@ -63,8 +63,12 @@ def candidates(
     need_streaming: bool = False,
     need_tools: bool = False,
     phi: bool = False,
+    prefer: UUID | None = None,
 ) -> tuple[list[Candidate], list[Skipped]]:
-    """Must run inside a tenant context (RLS limits tenant routes and credentials to the caller's tenant)."""
+    """Must run inside a tenant context (RLS limits tenant routes and credentials to the caller's tenant).
+    `prefer` (an agent's chosen model) moves that route to the front; the rest stay as failover. A preferred
+    model that is not one of the routes is ignored, so an agent can never reach a model the tenant has not
+    routed."""
     rows = session.execute(
         select(TenantRoute.model_id, TenantRoute.credential_id)
         .where(TenantRoute.kind == kind, TenantRoute.enabled.is_(True))
@@ -76,6 +80,8 @@ def candidates(
             .where(PlatformRoute.kind == kind, PlatformRoute.enabled.is_(True))
             .order_by(PlatformRoute.priority)
         ).all()
+    if prefer is not None:
+        rows = sorted(rows, key=lambda r: r[0] != prefer)  # stable: keeps the tenant's order for the rest
     out: list[Candidate] = []
     skipped: list[Skipped] = []
     for model_id, credential_id in rows:

@@ -24,7 +24,7 @@ approved the build to proceed on the proposal; the formal baseline document stil
 | CR-003 | 15-state call lifecycle, idempotent order-tolerant events | M04, M08 | High | Partial: 8-state browser subset, order-tolerant and idempotent; telephony states in Phase 6 |
 | CR-004 | Latency instrumentation and benchmark workload | M10, M18 | High | Partial: per-stage timing on every call, first benchmark with mock providers; real-vendor run, Silero VAD and streaming STT pending |
 | CR-005 | Carrier adapters, capability registry, trunks, DIDs, destination policies | M04 | High | Open |
-| CR-006 | Agent version schema; 5-state lifecycle | M05 | High | Open |
+| CR-006 | Agent version schema; 5-state lifecycle | M05 | High | Implemented (ADR-0007): MP §9 states; HLD v1.0 "configured" = readiness checks pass, "active" = published and not paused; rollback activates a previously published version; calls record agent version and provider/model versions |
 | CR-007 | Tool gateway and RAG authorization | M09, M12 | High | Open |
 | CR-008 | Native workflows: follow-ups, holiday calendars, support tickets | M11, M13, M14 | Medium | Open |
 | CR-009 | Inbound routing + queues; outbound policy engine, suppression, dial attempts | M06, M07 | High | Open |
@@ -37,7 +37,7 @@ approved the build to proceed on the proposal; the formal baseline document stil
 | CR-016 | Hinglish and country/language registry | M02, M03 | Medium | Partial: registry in `m02_tenant/regional.py` lists `hi-Latn-IN` |
 | CR-017 | Vertical-slice definition of done, dependency graph, status register | All | High | Partial: [module register](module-register.md) |
 | CR-018 | Customer-owned provider credentials | M03 | Medium | Implemented for AI providers: Fernet-encrypted, hint-only display, verify and revoke |
-| CR-019 | Ten agent templates | M05 | Low | Open |
+| CR-019 | Ten agent templates | M05 | Low | Implemented: starting configurations written by XploVoice (no document details them), seeded by migration 0004, every field editable; healthcare template carries a non-editable administrative-only guardrail |
 | CR-020 | KB malware scanning, document versioning, retrieval audit | M12 | Medium | Open |
 | CR-021 | Integration framework (OAuth, sync logs, retries) | M13 | Medium | Open |
 | CR-022 | Subscriptions, PAYG, invoices, FX, cost and charge ledgers | M15 | Medium | Partial: usage events and provider cost ledger; charging in Phase 7 |

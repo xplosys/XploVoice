@@ -52,7 +52,10 @@ def setup(api: str) -> tuple[dict, str]:
     agent = httpx.post(
         f"{api}/v1/agents",
         headers=h,
-        json={"name": "Benchmark agent", "config": {"greeting": "Hello.", "endpoint_silence_ms": 500}},
+        json={
+            "name": "Benchmark agent",
+            "config": {"greeting": "Hello.", "interruption": {"endpoint_silence_ms": 500}},
+        },
     )
     agent.raise_for_status()
     return h, agent.json()["id"]

@@ -15,7 +15,7 @@ later phase), *planned*, *awaiting configuration* (code path exists but needs a 
 | M02 | Tenants, members, invitations, regional settings | 1 | done | `modules/m02_tenant`; invitation email is awaiting configuration (dev returns the link) |
 | M03 | AI provider registry and gateway | 2 | done | `modules/m03_ai`: catalog, adapters (OpenAI, Anthropic, Deepgram, ElevenLabs, Sarvam, OpenAI-compatible self-hosted, Piper, dev-only mock), tenant routing, failover, circuit breaker, encrypted customer keys, admin catalog console. Managed vendor accounts and price lists are awaiting configuration |
 | M04 | Telephony carriers, trunks, numbers | 6 | planned | Carrier onboarding to start early (X-4) |
-| M05 | Agent builder and versioning | 3, 4 | partial | Phase 3 minimal agents with immutable versions (`modules/m05_agents`); full builder in Phase 4 |
+| M05 | Agent builder and versioning | 3, 4 | done (Phase 4 scope) | `modules/m05_agents`: all MP §9 fields, ten templates, immutable versions with content hashes and notes, readiness checks, lifecycle draft/testing/published/paused/archived, publish with a test-call gate, rollback, append-only publication history (ADR-0007). Knowledge base and tool grants are stored and run from Phase 5; transfer and recording run with telephony in Phase 6 |
 | M06 | Inbound routing and queues | 6 | planned | |
 | M07 | Outbound campaigns | 6 | planned | After M22-core (X-2, CR-023) |
 | M08 | Call sessions and lifecycle | 3 | done (Phase 3 scope) | `modules/m08_calls`: calls, order-tolerant lifecycle, append-only events and transcripts; telephony states in Phase 6 |

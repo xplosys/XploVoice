@@ -18,8 +18,14 @@ WORD_MS = 200
 
 
 class FakeBackend:
-    def __init__(self, reply: str = "Sure. Your appointment is moved to Friday at ten.", fail: set[str] | None = None):
+    def __init__(
+        self,
+        reply: str = "Sure. Your appointment is moved to Friday at ten.",
+        fail: set[str] | None = None,
+        heard: list[str] | None = None,
+    ):
         self.reply, self.fail = reply, fail or set()
+        self.heard = heard  # what STT "hears" on each caller turn, in order
         self.states: list[tuple[str, str | None]] = []
         self.events: list[dict] = []
         self.segments: list[dict] = []
@@ -37,6 +43,8 @@ class FakeBackend:
         if "stt" in self.fail:
             raise NoProviderError("stt")
         self.stt_calls += 1
+        if self.heard is not None:
+            return AiResult("Mock", "mock-stt", text=self.heard[self.stt_calls - 1])
         return AiResult("Mock", "mock-stt", text=f"caller turn {self.stt_calls}")
 
     async def llm(self, messages, language, request_id, info):
@@ -200,3 +208,64 @@ def test_audio_roundtrip_resamples_to_16k():
     pcm24 = tone(500)  # pretend it is 24 kHz
     wav = to_wav(pcm24, 24000)
     assert abs(len(from_wav(wav)) - len(pcm24) * 16000 / 24000) <= 2
+
+
+# ---------------------------------------------------------------------------------------------- Phase 4 settings
+ESCALATION = {
+    "enabled": True,
+    "phrases": ["speak to a human", "manager"],
+    "max_unclear_turns": 2,
+    "action": "take_message",
+    "message": "I'll pass your message to the team.",
+}
+TWO_TURNS = [silence(1500), tone(800), silence(3500), tone(800), silence(5000)]
+
+
+def test_caller_asking_for_a_person_is_escalated():
+    be = FakeBackend(heard=["Can I speak to a HUMAN please"])
+    reason, _ = run(be, [silence(1500), tone(800), silence(5000)], b=boot(escalation=ESCALATION))
+    assert reason == "escalated" and be.states[-1] == ("completed", "escalated")
+    assert agent_lines(be)[-1]["text"] == "I'll pass your message to the team."
+    ev = [e["data"] for e in be.events if e["type"] == "escalation.requested"][0]
+    assert ev["trigger"] == "speak to a human" and ev["action"] == "take_message"
+    assert be.llm_messages == []  # handed over without asking the model
+
+
+def test_transfer_escalation_ends_with_transfer_requested():
+    be = FakeBackend(heard=["get me the manager"])
+    esc = ESCALATION | {"action": "transfer", "message": "Please hold while I connect you."}
+    reason, _ = run(be, [silence(1500), tone(800), silence(5000)], b=boot(escalation=esc))
+    assert reason == "transfer_requested"
+    assert agent_lines(be)[-1]["text"] == "Please hold while I connect you."
+
+
+def test_unclear_turns_get_the_fallback_line_then_escalate():
+    be = FakeBackend(heard=["", ""])
+    cfg = boot(escalation=ESCALATION, messages={"unclear": "Pardon, could you repeat that?"})
+    reason, _ = run(be, TWO_TURNS, b=cfg)
+    texts = [a["text"] for a in agent_lines(be)]
+    assert texts[1] == "Pardon, could you repeat that?"
+    assert reason == "escalated" and texts[-1] == "I'll pass your message to the team."
+    assert [e["data"]["trigger"] for e in be.events if e["type"] == "escalation.requested"] == ["unclear"]
+
+
+def test_escalation_off_never_hands_over():
+    be = FakeBackend(heard=["manager", "manager"])
+    reason, _ = run(be, TWO_TURNS, b=boot(escalation=ESCALATION | {"enabled": False}))
+    assert reason == "caller_hangup" and not any(e["type"] == "escalation.requested" for e in be.events)
+
+
+def test_after_hours_plays_closed_message_and_ends():
+    be = FakeBackend()
+    reason, _ = run(be, [silence(1000)], b=boot(closed="We're closed. Please call back tomorrow."), tail_ms=8000)
+    assert reason == "after_hours"
+    assert [a["text"] for a in agent_lines(be)] == ["We're closed. Please call back tomorrow."]
+    assert any(e["type"] == "after_hours" for e in be.events)
+
+
+def test_agent_fallback_message_replaces_the_default():
+    be = FakeBackend(fail={"llm"})
+    reason, _ = run(
+        be, [silence(1500), tone(800), silence(5000)], b=boot(messages={"unavailable": "Our line is busy."})
+    )
+    assert reason == "no_provider" and agent_lines(be)[-1]["text"] == "Our line is busy."

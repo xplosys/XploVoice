@@ -15,7 +15,11 @@ const STATE_LABEL: Record<string, string> = {
 
 /** Browser test call. Joins the call's LiveKit room with the microphone; the voice worker joins the same room
  * and runs exactly the engine a phone call uses. Transcript lines arrive as data messages from the worker. */
-export function TestCall({ agentId, agentName }: { agentId: string; agentName: string }) {
+export function TestCall({ agentId, agentName, versions, latest, hasHours }: {
+  agentId: string; agentName: string; versions: { id: string; version: number }[]; latest: string; hasHours: boolean;
+}) {
+  const [versionId, setVersionId] = useState(latest);
+  const [afterHours, setAfterHours] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
   const [agentState, setAgentState] = useState<string>("");
   const [lines, setLines] = useState<Line[]>([]);
@@ -53,7 +57,7 @@ export function TestCall({ agentId, agentName }: { agentId: string; agentName: s
 
   async function start() {
     setError(undefined); setLines([]); setEndReason(undefined); setPhase("connecting");
-    const r = await startCallAction(agentId);
+    const r = await startCallAction(agentId, { versionId, afterHours });
     if (!r.session) { setError(r.error); setPhase("idle"); return; }
     setCallId(r.session.call_id);
     const rm = new Room({ adaptiveStream: true, dynacast: true });
@@ -93,12 +97,21 @@ export function TestCall({ agentId, agentName }: { agentId: string; agentName: s
         <div className="flex items-center gap-2">
           {phase === "waiting" && <Badge tone="amber">Waiting for the agent…</Badge>}
           {phase === "live" && agentState && <Badge tone={agentState === "speaking" ? "brand" : "green"}>{STATE_LABEL[agentState] ?? agentState}</Badge>}
-          {phase === "ended" && <Badge>Call ended{endReason ? `: ${endReason.replace("_", " ")}` : ""}</Badge>}
+          {phase === "ended" && <Badge>Call ended{endReason ? `: ${endReason.replaceAll("_", " ")}` : ""}</Badge>}
           {live
             ? <Button variant="secondary" className="text-red-700" onClick={hangUp}>End call</Button>
             : <Button onClick={start}>{phase === "ended" ? "Call again" : "Start call"}</Button>}
         </div>
       </div>
+      {!live && (
+        <div className="mb-4 flex flex-wrap items-center gap-4 text-sm">
+          <label className="flex items-center gap-2">Version
+            <select value={versionId} onChange={(e) => setVersionId(e.target.value)} className="rounded-md border border-slate-300 px-2 py-1">
+              {versions.map((v) => <option key={v.id} value={v.id}>Version {v.version}{v.id === latest ? " (latest)" : ""}</option>)}
+            </select></label>
+          {hasHours && <label className="flex items-center gap-2"><input type="checkbox" checked={afterHours} onChange={(e) => setAfterHours(e.target.checked)} /> Simulate after hours</label>}
+        </div>
+      )}
       <FormError message={error} />
       <div aria-live="polite" className="min-h-40 space-y-2 rounded-md bg-slate-50 p-3 text-sm">
         {lines.length === 0 && <p className="text-slate-500">{live ? "The conversation will appear here." : "No call yet."}</p>}

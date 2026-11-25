@@ -87,6 +87,9 @@ class CallSession:
         self.barge_in_ms = int(self.cfg.get("barge_in_min_ms", 250))
         self.interruptible = bool(self.cfg.get("interruptible", True))
         self.silence_limit_ms = int(self.cfg.get("silence_timeout_seconds", 15)) * 1000
+        self.msg = MESSAGES | {k: v for k, v in (self.cfg.get("messages") or {}).items() if v}
+        self.escalation: dict[str, Any] = self.cfg.get("escalation") or {"enabled": False}
+        self.unclear_turns = 0
         self.rid = f"{worker_id[:12]}-{uuid.uuid4().hex[:8]}"
         self.seq = boot.next_seq
         self.turn_no = 0
@@ -127,8 +130,11 @@ class CallSession:
         listener = asyncio.create_task(self._listen())
         remaining = max(1.0, float(self.cfg.get("max_call_seconds", 300)) - self.boot.elapsed_seconds)
         limiter = asyncio.create_task(self._deadline(remaining))
-        opening = MESSAGES["resumed"] if self.boot.resumed else self.cfg.get("greeting")
-        if opening:
+        opening = self.msg["resumed"] if self.boot.resumed else self.cfg.get("greeting")
+        if self.cfg.get("closed") and not self.boot.resumed:
+            self._event("after_hours", {})
+            self._start(self._final_words(self.cfg["closed"], "after_hours"))
+        elif opening:
             self._start(self._respond(None, preset=opening, kind="greeting" if not self.boot.resumed else "system"))
         done_wait = asyncio.create_task(self.ended.wait())
         await asyncio.wait({listener, done_wait}, return_when=asyncio.FIRST_COMPLETED)
@@ -163,7 +169,7 @@ class CallSession:
 
     async def _deadline(self, seconds: float) -> None:
         await asyncio.sleep(seconds / self.speed)
-        await self._final_words(MESSAGES["time_limit"], "max_duration")
+        await self._final_words(self.msg["time_limit"], "max_duration")
 
     async def _final_words(self, text: str, reason: str, status: str = "completed") -> None:
         """Interrupts whatever is happening, says a closing line that cannot be interrupted, then ends."""
@@ -206,9 +212,9 @@ class CallSession:
                     self.silent_ms = 0
                     if not self.prompted:
                         self.prompted = True
-                        self._start(self._respond(None, preset=MESSAGES["still_there"], kind="system"))
+                        self._start(self._respond(None, preset=self.msg["still_there"], kind="system"))
                     else:
-                        self._start(self._final_words(MESSAGES["silence_bye"], "silence_timeout"))
+                        self._start(self._final_words(self.msg["silence_bye"], "silence_timeout"))
 
     async def _barge_in(self) -> None:
         task = self.respond_task
@@ -245,9 +251,11 @@ class CallSession:
         try:
             if utt is not None:
                 text = await self._transcribe(utt, m)
-                if not text:
+                trigger = self._escalation_trigger(text)
+                if trigger:
+                    self._escalate(trigger)
                     return
-                source: AsyncIterator[str] = self._llm_clauses(m)
+                source: AsyncIterator[str] = self._llm_clauses(m) if text else self._preset_clauses(self.msg["unclear"])
             else:
                 source = self._preset_clauses(preset or "")
             await self._speak(source, m, t0, spoken, progress)
@@ -260,7 +268,7 @@ class CallSession:
             self._event("no_provider", {"turn": self.turn_no})
             if kind != "system":
                 asyncio.get_running_loop().create_task(
-                    self._final_words(MESSAGES["unavailable"], "no_provider", "failed")
+                    self._final_words(self.msg["unavailable"], "no_provider", "failed")
                 )
             else:
                 self.end("no_provider", "failed")
@@ -281,6 +289,30 @@ class CallSession:
                 self._set_state("listening")
             self.silent_ms = 0
             await self._flush()
+
+    # ------------------------------------------------------------------ escalation
+    def _escalation_trigger(self, text: str) -> str | None:
+        """A phrase the caller said, or "unclear" after too many turns with nothing understood."""
+        esc = self.escalation
+        if not esc.get("enabled"):
+            return None
+        if not text:
+            self.unclear_turns += 1
+            limit = int(esc.get("max_unclear_turns") or 0)
+            return "unclear" if limit and self.unclear_turns >= limit else None
+        self.unclear_turns = 0
+        said = " ".join(text.lower().split())
+        return next((p for p in esc.get("phrases", []) if p in said), None)
+
+    def _escalate(self, trigger: str) -> None:
+        """Hands the call over. Transferring to a phone number is telephony's job (Phase 6); on a browser call
+        the agent says the hand-over message and ends the call with a reason that says what was asked for."""
+        action = self.escalation.get("action", "take_message")
+        EVENTS.labels("escalation").inc()
+        self._event("escalation.requested", {"trigger": trigger, "action": action, "turn": self.turn_no})
+        reason = "transfer_requested" if action == "transfer" else "escalated"
+        message = self.escalation.get("message") or "Thank you for calling."
+        asyncio.get_running_loop().create_task(self._final_words(message, reason))
 
     async def _transcribe(self, utt: Utterance, m: TurnMetrics) -> str:
         t = self.clock()

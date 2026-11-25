@@ -35,7 +35,10 @@ def _reset():
 
 
 def make_agent(client, tok, **cfg):
-    body = {"name": "Front desk", "config": {"greeting": "Hello, Sunrise Dental.", "endpoint_silence_ms": 500} | cfg}
+    body = {
+        "name": "Front desk",
+        "config": {"greeting": "Hello, Sunrise Dental.", "interruption": {"endpoint_silence_ms": 500}} | cfg,
+    }
     r = client.post("/v1/agents", headers=auth(tok), json=body)
     assert r.status_code == 201, r.text
     return r.json()

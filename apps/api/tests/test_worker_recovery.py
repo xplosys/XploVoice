@@ -70,7 +70,9 @@ def _wait(pred, timeout: float, what: str):
 def test_worker_killed_mid_call_is_recovered_by_another_worker(client, owner_engine, api_server):
     t = register(client)
     mock_routes(client, t, owner_engine)
-    agent = client.post("/v1/agents", headers=auth(t), json={"name": "Desk", "config": {"endpoint_silence_ms": 500}})
+    agent = client.post(
+        "/v1/agents", headers=auth(t), json={"name": "Desk", "config": {"interruption": {"endpoint_silence_ms": 500}}}
+    )
     a = _worker(api_server)
     b = None
     try:

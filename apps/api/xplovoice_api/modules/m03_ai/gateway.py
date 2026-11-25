@@ -47,6 +47,7 @@ class Outcome:
     attempts: list[Attempt] = field(default_factory=list)
     skipped: list[Skipped] = field(default_factory=list)
     units: dict[str, float] = field(default_factory=dict)
+    model_key: str = ""  # the provider's own model identifier, recorded on calls (ADD-F-07)
 
 
 class NoProviderAvailableError(Exception):
@@ -158,12 +159,14 @@ async def run[T](
             attempts.append(Attempt(c.provider.name, c.model.display_name, "success", latency_ms=ms))
             units = units_of(result)
             await _meter(m, c, kind, units)
-            return result, Outcome(c.provider.name, c.model.display_name, c.account, attempts, skipped, units)
+            return result, Outcome(
+                c.provider.name, c.model.display_name, c.account, attempts, skipped, units, c.model.model_key
+            )
     raise NoProviderAvailableError(kind, attempts, skipped)
 
 
 async def transcribe(
-    m: Meter, *, audio: bytes, mime: str, language: str | None, phi: bool = False
+    m: Meter, *, audio: bytes, mime: str, language: str | None, phi: bool = False, prefer: UUID | None = None
 ) -> tuple[STTResult, Outcome]:
     return await run(
         m,
@@ -172,11 +175,18 @@ async def transcribe(
         lambda r: {"audio_second": round(r.audio_seconds, 3)},
         language=language,
         phi=phi,
+        prefer=prefer,
     )
 
 
 async def synthesize(
-    m: Meter, *, text: str, language: str | None, voice: str | None = None, phi: bool = False
+    m: Meter,
+    *,
+    text: str,
+    language: str | None,
+    voice: str | None = None,
+    phi: bool = False,
+    prefer: UUID | None = None,
 ) -> tuple[TTSResult, Outcome]:
     return await run(
         m,
@@ -185,6 +195,7 @@ async def synthesize(
         lambda r: {"character": r.characters},
         language=language,
         phi=phi,
+        prefer=prefer,
     )
 
 
@@ -196,10 +207,13 @@ async def chat_stream(
     need_tools: bool = False,
     phi: bool = False,
     outcome: Outcome | None = None,
+    prefer: UUID | None = None,
 ) -> AsyncIterator[str]:
     """Streams text with failover allowed only until the first token: after that, switching provider would
     repeat or contradict what the caller has already heard. Usage is metered when the provider reports it."""
-    cands, skipped = await _route(m, "llm", language=language, need_streaming=True, need_tools=need_tools, phi=phi)
+    cands, skipped = await _route(
+        m, "llm", language=language, need_streaming=True, need_tools=need_tools, phi=phi, prefer=prefer
+    )
     attempts: list[Attempt] = []
     timeout = get_settings().ai_request_timeout_seconds
     for c in cands:
@@ -250,6 +264,7 @@ async def chat_stream(
                             c.account,
                         )
                         outcome.attempts, outcome.skipped, outcome.units = attempts, skipped, units
+                        outcome.model_key = c.model.model_key
                 raise
             except (ProviderError, TimeoutError) as e:
                 err = e if isinstance(e, ProviderError) else ProviderError(f"{c.provider.key}: timed out")
@@ -278,5 +293,6 @@ async def chat_stream(
             if outcome is not None:
                 outcome.provider, outcome.model, outcome.account = c.provider.name, c.model.display_name, c.account
                 outcome.attempts, outcome.skipped, outcome.units = attempts, skipped, units
+                outcome.model_key = c.model.model_key
             return
     raise NoProviderAvailableError("llm", attempts, skipped)

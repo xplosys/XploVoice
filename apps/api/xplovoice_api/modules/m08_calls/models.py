@@ -30,6 +30,8 @@ class Call(Base):
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     duration_seconds: Mapped[Decimal | None] = mapped_column(Numeric(10, 3))
     recoveries: Mapped[int] = mapped_column(Integer, server_default="0")
+    providers_used: Mapped[dict] = mapped_column(JSONB, server_default="{}")  # kind -> provider, model, version
+    options: Mapped[dict] = mapped_column(JSONB, server_default="{}")  # test-call options, e.g. simulate hours
 
 
 class CallEvent(Base):

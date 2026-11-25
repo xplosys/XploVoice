@@ -18,7 +18,7 @@ import jwt
 from fastapi import APIRouter, Depends, Header
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.dialects.postgresql import insert
 
 from ...core.config import get_settings
@@ -27,6 +27,8 @@ from ...core.errors import ApiError, bad_request, conflict, not_found, unauthori
 from ..m03_ai import gateway
 from ..m03_ai.adapters.base import ChatMessage, LLMRequest
 from ..m05_agents.models import Agent, AgentVersion
+from ..m05_agents.runtime import engine_config, is_open
+from ..m05_agents.schemas import AgentConfig
 from . import lifecycle
 from .dispatch import decode_worker_token
 from .livekit import room_token
@@ -79,6 +81,27 @@ def _load(s, w: Worker) -> Call:  # type: ignore[no-untyped-def]
     return call
 
 
+def _agent_cfg(s, call: Call) -> AgentConfig:  # type: ignore[no-untyped-def]
+    """The pinned version's configuration. Model preferences are read here, never taken from the worker."""
+    v = s.get(AgentVersion, call.agent_version_id)
+    assert v is not None
+    return AgentConfig.model_validate(v.config)
+
+
+def _used(s, call: Call, kind: str, o: gateway.Outcome) -> None:  # type: ignore[no-untyped-def]
+    """Records the exact provider and model version that served this call (ADD-F-07). The last one wins if a
+    failover changed it mid-call; every turn's providers are also in the turn.metrics events."""
+    entry = {"provider": o.provider, "model": o.model, "model_version": o.model_key, "account": o.account}
+    if (call.providers_used or {}).get(kind) != entry:  # atomic merge: STT, LLM and TTS requests overlap
+        s.execute(
+            text(
+                "update calls set providers_used = providers_used "
+                "|| jsonb_build_object(cast(:k as text), cast(:v as jsonb)) where id = :id"
+            ),
+            {"k": kind, "v": json.dumps(entry), "id": call.id},
+        )
+
+
 @router.post("/calls/{call_id}/bootstrap", response_model=BootstrapOut)
 def bootstrap(call_id: UUID, data: BootstrapIn, w: Worker = Depends(worker_auth)) -> BootstrapOut:
     settings = get_settings()
@@ -111,15 +134,21 @@ def bootstrap(call_id: UUID, data: BootstrapIn, w: Worker = Depends(worker_auth)
         next_seq = (
             s.scalar(select(func.max(TranscriptSegment.seq)).where(TranscriptSegment.call_id == call.id)) or -1
         ) + 1
-        config = dict(version.config)
-        config["max_call_seconds"] = min(int(config.get("max_call_seconds", 300)), settings.max_call_seconds)
+        cfg = AgentConfig.model_validate(version.config)
+        name = str(version.config.get("agent_name") or agent.name)
+        open_now = not (call.options or {}).get("simulate_after_hours") and is_open(
+            cfg.business_hours, datetime.now(UTC)
+        )
+        if (call.options or {}).get("simulate_after_hours") and not cfg.business_hours.enabled:
+            open_now = True  # nothing to simulate: the agent has no business hours
+        config = engine_config(cfg, name, open_now=open_now, max_seconds_cap=settings.max_call_seconds)
         elapsed = (datetime.now(UTC) - call.connected_at).total_seconds() if call.connected_at else 0.0
         return BootstrapOut(
             call_id=call.id,
             tenant_id=w.tenant_id,
             correlation_id=call.correlation_id,
             status=call.status,
-            agent_name=agent.name,
+            agent_name=name,
             agent_version=version.version,
             config=config,
             room=call.room_name,
@@ -202,10 +231,15 @@ async def stt(call_id: UUID, data: WorkerSttIn, w: Worker = Depends(worker_auth)
         call = _load(s, w)
         try:
             r, o = await gateway.transcribe(
-                _meter(s, w, call, data.request_id), audio=audio, mime=data.mime, language=data.language
+                _meter(s, w, call, data.request_id),
+                audio=audio,
+                mime=data.mime,
+                language=data.language,
+                prefer=_agent_cfg(s, call).ai.stt_model_id,
             )
         except gateway.NoProviderAvailableError as e:
             raise _no_provider(e) from None
+        _used(s, call, "stt", o)
     return WorkerAiOut(
         provider=o.provider,
         model=o.model,
@@ -222,10 +256,15 @@ async def tts(call_id: UUID, data: WorkerTtsIn, w: Worker = Depends(worker_auth)
         call = _load(s, w)
         try:
             r, o = await gateway.synthesize(
-                _meter(s, w, call, data.request_id), text=data.text, language=data.language, voice=data.voice
+                _meter(s, w, call, data.request_id),
+                text=data.text,
+                language=data.language,
+                voice=data.voice,
+                prefer=_agent_cfg(s, call).ai.tts_model_id,
             )
         except gateway.NoProviderAvailableError as e:
             raise _no_provider(e) from None
+        _used(s, call, "tts", o)
     return WorkerAiOut(
         provider=o.provider,
         model=o.model,
@@ -255,7 +294,11 @@ async def llm(call_id: UUID, data: WorkerLlmIn, w: Worker = Depends(worker_auth)
                 model="", messages=[ChatMessage(m.role, m.content) for m in data.messages], max_tokens=data.max_tokens
             )
             stream = gateway.chat_stream(
-                _meter(s, w, call, data.request_id), req, language=data.language, outcome=outcome
+                _meter(s, w, call, data.request_id),
+                req,
+                language=data.language,
+                outcome=outcome,
+                prefer=_agent_cfg(s, call).ai.llm_model_id,
             )
             try:
                 async for t in stream:
@@ -265,7 +308,10 @@ async def llm(call_id: UUID, data: WorkerLlmIn, w: Worker = Depends(worker_auth)
                 return
             except asyncio.CancelledError:
                 await stream.aclose()
+                if outcome.provider:
+                    _used(s, call, "llm", outcome)
                 raise
+            _used(s, call, "llm", outcome)
             yield _sse({"done": True, "provider": outcome.provider, "model": outcome.model, "units": outcome.units})
 
     return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-store"})

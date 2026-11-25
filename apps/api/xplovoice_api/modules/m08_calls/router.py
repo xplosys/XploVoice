@@ -15,7 +15,8 @@ from ...core.db import set_context
 from ...core.errors import ApiError, conflict, not_found
 from ...core.permissions import Perm
 from ..m05_agents.models import Agent, AgentVersion
-from ..m05_agents.router import get_agent
+from ..m05_agents.router import get_agent, get_version
+from ..m05_agents.schemas import AgentConfig
 from . import dispatch, lifecycle
 from .livekit import room_token
 from .models import Call, CallEvent, TranscriptSegment
@@ -47,6 +48,8 @@ def _call_out(c: Call, a: Agent, v: AgentVersion) -> dict:
         ended_at=c.ended_at,
         duration_seconds=c.duration_seconds,
         recoveries=c.recoveries,
+        agent_version_id=v.id,
+        providers_used=c.providers_used or {},
     )
 
 
@@ -54,8 +57,11 @@ def _call_out(c: Call, a: Agent, v: AgentVersion) -> dict:
 def start_browser_call(data: VoiceSessionIn, ctx: Ctx = Depends(require(Perm.CALLS_TEST))) -> VoiceSessionOut:
     s = get_settings()
     agent, version = get_agent(ctx, data.agent_id)
-    if agent.status != "active":
-        raise not_found()
+    if agent.status == "archived":
+        raise conflict("agent_archived", "This agent is archived. Restore it before testing it.")
+    if data.version_id:
+        version = get_version(ctx, agent, data.version_id)
+    cfg = AgentConfig.model_validate(version.config)
     ctx.session.execute(STALE_SQL, {"t": ctx.tenant.id})
     live = ctx.session.scalar(
         select(func.count())
@@ -64,7 +70,7 @@ def start_browser_call(data: VoiceSessionIn, ctx: Ctx = Depends(require(Perm.CAL
     )
     if (live or 0) >= s.max_concurrent_calls_per_tenant:
         raise ApiError(429, "too_many_calls", "Your organisation already has the maximum number of live calls")
-    max_seconds = min(int(version.config.get("max_call_seconds", 300)), s.max_call_seconds)
+    max_seconds = min(cfg.limits.max_call_seconds, s.max_call_seconds)
     call = Call(
         tenant_id=ctx.tenant.id,
         agent_id=agent.id,
@@ -74,12 +80,22 @@ def start_browser_call(data: VoiceSessionIn, ctx: Ctx = Depends(require(Perm.CAL
         status="created",
         room_name=f"call_{secrets.token_urlsafe(18)}",  # opaque: no tenant, agent or user in the name
         correlation_id=ctx.meta.correlation_id or secrets.token_hex(16),
-        language=version.config.get("language"),
+        language=cfg.language,
         created_by_membership_id=ctx.membership.id,
+        options={"simulate_after_hours": True} if data.simulate_after_hours else {},
     )
+    if agent.status == "draft":
+        agent.status = "testing"  # MP section 9 lifecycle: the first test call moves a draft into testing
     ctx.session.add(call)
     ctx.session.flush()
-    ctx.audit("call.started", resource_type="call", resource_id=str(call.id), channel="browser", agent=str(agent.id))
+    ctx.audit(
+        "call.started",
+        resource_type="call",
+        resource_id=str(call.id),
+        channel="browser",
+        agent=str(agent.id),
+        version=version.version,
+    )
     ctx.session.commit()  # the worker must be able to read the call as soon as the job is visible
     set_context(ctx.session, tenant_id=ctx.tenant.id, user_id=ctx.user.id)  # RLS context is per transaction
     try:

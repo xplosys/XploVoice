@@ -21,21 +21,31 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
     throw e;
   });
   const turns = call.events.filter((e) => e.type === "turn.metrics").map((e) => e.data as Metrics);
-  const providers = Object.assign({}, ...turns.map((t) => t.providers ?? {})) as Record<string, string>;
   const notable = call.events.filter((e) => !["turn.metrics", "state.changed"].includes(e.type));
   return (
     <div className="space-y-6">
       <div>
         <Link href="/app/calls" className="text-sm text-brand-700 underline">Calls</Link>
-        <h1 className="text-2xl font-semibold">{call.agent_name} <span className="text-base font-normal text-slate-500">version {call.agent_version}</span></h1>
+        <h1 className="text-2xl font-semibold">{call.agent_name} <Link href={`/app/agents/${call.agent_id}/versions/${call.agent_version}`} className="text-base font-normal text-slate-500 underline">version {call.agent_version}</Link></h1>
         <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
           <Badge tone={callTone(call.status)}>{call.status}</Badge>
-          {call.end_reason && <span>Ended: {call.end_reason.replace("_", " ")}</span>}
+          {call.end_reason && <span>Ended: {call.end_reason.replaceAll("_", " ")}</span>}
           <span>· {new Date(call.created_at).toLocaleString()}</span>
           {call.duration_seconds && <span>· {Number(call.duration_seconds).toFixed(1)} s</span>}
           {call.recoveries > 0 && <Badge tone="amber">recovered {call.recoveries}×</Badge>}
         </p>
       </div>
+      {Object.keys(call.providers_used).length > 0 && (
+        <Card>
+          <h2 className="mb-2 font-medium">Providers and models used</h2>
+          <ul className="grid gap-1 text-sm sm:grid-cols-3">
+            {(["stt", "llm", "tts"] as const).map((k) => {
+              const u = call.providers_used[k];
+              return u ? <li key={k}><span className="font-medium">{{ stt: "Speech-to-text", llm: "Language model", tts: "Text-to-speech" }[k]}:</span> {u.provider}, {u.model} <span className="font-mono text-xs text-slate-500">({u.model_version}, {u.account === "customer" ? "your key" : "XploVoice account"})</span></li> : null;
+            })}
+          </ul>
+        </Card>
+      )}
       <Card>
         <h2 className="mb-3 font-medium">Transcript</h2>
         {call.transcript.length === 0 ? <p className="text-sm text-slate-600">Nothing was said on this call.</p> : (
@@ -70,15 +80,9 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
         </table>
       </Card>
       <Card>
-        <h2 className="mb-2 font-medium">Providers used</h2>
-        {Object.keys(providers).length === 0 ? <p className="text-sm text-slate-600">None.</p> : (
-          <ul className="text-sm">{Object.entries(providers).map(([k, v]) => <li key={k}><span className="uppercase text-slate-500">{k}</span> · {v}</li>)}</ul>
-        )}
-        {notable.length > 0 && (
-          <>
-            <h3 className="mb-1 mt-4 text-sm font-medium">Events</h3>
-            <ul className="text-xs text-slate-600">{notable.map((e, i) => <li key={i}>{new Date(e.occurred_at).toLocaleTimeString()} · {e.type.replace(".", " ")}</li>)}</ul>
-          </>
+        <h2 className="mb-2 font-medium">Events</h2>
+        {notable.length === 0 ? <p className="text-sm text-slate-600">None.</p> : (
+          <ul className="text-xs text-slate-600">{notable.map((e, i) => <li key={i}>{new Date(e.occurred_at).toLocaleTimeString()} · {e.type.replaceAll(".", " ").replaceAll("_", " ")}{typeof e.data?.trigger === "string" ? ` (${e.data.trigger})` : ""}</li>)}</ul>
         )}
       </Card>
     </div>

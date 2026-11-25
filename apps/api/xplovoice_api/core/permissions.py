@@ -13,6 +13,7 @@ class Perm(StrEnum):
     AUDIT_READ = "audit:read"
     AGENTS_READ = "agents:read"
     AGENTS_MANAGE = "agents:manage"
+    AGENTS_PUBLISH = "agents:publish"  # publish, roll back, pause, resume: changes what live callers reach
     CALLS_READ = "calls:read"
     CALLS_TEST = "calls:test"
     BILLING_MANAGE = "billing:manage"

@@ -9,6 +9,8 @@ from pydantic import BaseModel, Field
 
 class VoiceSessionIn(BaseModel):
     agent_id: UUID
+    version_id: UUID | None = None  # test a specific saved version; default: the latest
+    simulate_after_hours: bool = False  # test the agent's after-hours behaviour at any time of day
 
 
 class VoiceSessionOut(BaseModel):
@@ -34,6 +36,8 @@ class CallOut(BaseModel):
     ended_at: datetime | None
     duration_seconds: Decimal | None
     recoveries: int
+    agent_version_id: UUID
+    providers_used: dict[str, Any] = {}
 
 
 class SegmentOut(BaseModel):
