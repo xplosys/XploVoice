@@ -10,6 +10,8 @@ COPY . .
 RUN uv sync --frozen --no-dev
 
 FROM python:3.13-slim
+# Apply Debian security fixes released after the base image was built (image scan blocks HIGH/CRITICAL).
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
 # pip is not needed at runtime and carries its own vendored libraries; remove it to shrink the attack surface.
 RUN python -m pip uninstall -y pip setuptools wheel 2>/dev/null; rm -rf /usr/local/lib/python3.13/site-packages/pip* \
     && useradd --system --uid 10001 --home /app xplovoice
