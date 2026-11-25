@@ -5,7 +5,7 @@ import { accessToken } from "./session";
 export const API_URL = process.env.XV_API_INTERNAL_URL ?? "http://localhost:8000";
 
 export class ApiError extends Error {
-  constructor(public status: number, public code: string, message: string) {
+  constructor(public status: number, public code: string, message: string, public details?: Record<string, unknown>) {
     super(message);
   }
 }
@@ -31,7 +31,7 @@ export async function api<T>(path: string, init: Init = {}): Promise<T> {
       const msg = String(d[0]?.msg ?? "Invalid input").replace(/^Value error, /, "");
       throw new ApiError(res.status, "validation_error", msg);
     }
-    throw new ApiError(res.status, d?.code ?? "error", d?.message ?? "Something went wrong");
+    throw new ApiError(res.status, d?.code ?? "error", d?.message ?? "Something went wrong", d);
   }
   return data as T;
 }
@@ -67,3 +67,31 @@ export type AuditEvent = {
 };
 
 export type MyTenant = { tenant_id: string; name: string; role: string; current: boolean };
+
+export type Price = { unit: string; unit_price: string; currency: string; effective_from: string; source: string };
+export type AiModel = {
+  id: string; kind: string; model_key: string; display_name: string; languages: string[]; streaming: boolean;
+  function_calling: boolean; context_window: number | null; voices: { id: string; name: string }[]; status: string;
+  prices: Price[];
+};
+export type AiProvider = {
+  id: string; key: string; name: string; hosting: string; kinds: string[]; regions: string[]; phi_eligible: boolean;
+  customer_keys_allowed: boolean; managed_status: string; status: string; models: AiModel[];
+};
+export type AiCredential = {
+  id: string; provider_key: string; provider_name: string; label: string; secret_hint: string; status: string;
+  last_verified_at: string | null; last_error: string | null; created_at: string;
+};
+export type AiRoute = { priority: number; model_id: string; model: string; provider: string; credential_id: string | null;
+  credential_label: string | null };
+export type KindRoutes = { kind: "llm" | "stt" | "tts"; source: string; routes: AiRoute[] };
+export type RouteCheck = { usable: { provider: string; model: string; account: string }[];
+  skipped: { provider: string; model: string; reason: string }[] };
+export type AiTest = { provider: string; model: string; account: string; text?: string | null; audio_base64?: string | null;
+  mime?: string | null; units: Record<string, number>;
+  attempts: { provider: string; model: string; outcome: string; error: string | null; latency_ms: number | null }[];
+  skipped: { provider: string; model: string; reason: string }[] };
+export type UsageRow = { day: string; kind: string; provider: string; model: string; account: string; unit: string;
+  quantity: string; cost: string | null; currency: string | null; unpriced_events: number };
+export type UsageEvent = { id: number; occurred_at: string; kind: string; provider: string; model: string; account: string;
+  unit: string; quantity: string; source_type: string; cost: string | null; currency: string | null; borne_by: string | null };

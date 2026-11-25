@@ -28,6 +28,20 @@ class Settings(BaseSettings):
     cors_origins: list[str] = ["http://localhost:3000"]
     login_rate_limit_per_minute: int = 10
 
+    # Data encryption keys (Fernet, url-safe base64, 32 bytes). The first encrypts; all decrypt, so keys can be
+    # rotated by prepending a new one. Required outside development/test.
+    encryption_keys: list[str] = []
+
+    # M03: XploVoice-managed provider accounts, keyed by provider key, e.g. {"openai": "sk-..."}. Injected from
+    # the secrets manager. A provider without a key here is "awaiting configuration" for managed use.
+    provider_keys: dict[str, str] = {}
+    # Endpoints of self-hosted model servers, keyed by provider key, e.g. {"ollama": "http://ollama:11434/v1"}.
+    self_hosted_urls: dict[str, str] = {}
+    ai_request_timeout_seconds: float = 30.0
+    ai_tenant_test_rate_per_minute: int = 20
+    breaker_failure_threshold: int = 5
+    breaker_open_seconds: int = 30
+
     @property
     def is_production_like(self) -> bool:
         return self.environment in ("staging", "production")
@@ -38,4 +52,6 @@ def get_settings() -> Settings:
     settings = Settings()
     if settings.is_production_like and settings.jwt_secret.startswith("dev-only"):
         raise RuntimeError("XV_JWT_SECRET must be set outside development")
+    if settings.is_production_like and not settings.encryption_keys:
+        raise RuntimeError("XV_ENCRYPTION_KEYS must be set outside development")
     return settings

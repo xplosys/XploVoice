@@ -30,17 +30,17 @@ approved the build to proceed on the proposal; the formal baseline document stil
 | CR-009 | Inbound routing + queues; outbound policy engine, suppression, dial attempts | M06, M07 | High | Open |
 | CR-010 | Worker and queue spec: heartbeats, DLQ, backpressure, regional routing | M10 | High | Open |
 | CR-011 | Consent, retention, recording audit for standard tenants | M22, M24 | Medium | Open |
-| CR-012 | Platform-wide fallback chains and circuit breakers | M03, M04, M09 | High | Open |
+| CR-012 | Platform-wide fallback chains and circuit breakers | M03, M04, M09 | High | Partial: AI gateway fallback and breaker (ADR-0005); telephony and engine in Phases 3 and 6 |
 | CR-013 | Concurrency, capacity and admission control | M10, M15 | High | Open |
 | CR-014 | Per-call trace span model and monitoring catalogue | M18, M16 | Medium | Open |
 | CR-015 | Core acceptance test catalogue (VX-xxx) | All | High | Open |
 | CR-016 | Hinglish and country/language registry | M02, M03 | Medium | Partial: registry in `m02_tenant/regional.py` lists `hi-Latn-IN` |
 | CR-017 | Vertical-slice definition of done, dependency graph, status register | All | High | Partial: [module register](module-register.md) |
-| CR-018 | Customer-owned provider credentials | M03 | Medium | Open |
+| CR-018 | Customer-owned provider credentials | M03 | Medium | Implemented for AI providers: Fernet-encrypted, hint-only display, verify and revoke |
 | CR-019 | Ten agent templates | M05 | Low | Open |
 | CR-020 | KB malware scanning, document versioning, retrieval audit | M12 | Medium | Open |
 | CR-021 | Integration framework (OAuth, sync logs, retries) | M13 | Medium | Open |
-| CR-022 | Subscriptions, PAYG, invoices, FX, cost and charge ledgers | M15 | Medium | Open |
+| CR-022 | Subscriptions, PAYG, invoices, FX, cost and charge ledgers | M15 | Medium | Partial: usage events and provider cost ledger; charging in Phase 7 |
 | CR-023 | Resolve M07/M22 cycle | M07, M22 | High | Accepted (split) |
 | CR-024 | Public marketing site pages | Web | Low | Implemented (content makes no compliance claims) |
 | CR-025 | Password change must end sessions in every tenant, not only the current one | M01 | High | Implemented: `revoke_my_sessions` definer function, test `test_password_change_revokes_sessions_in_every_org` |

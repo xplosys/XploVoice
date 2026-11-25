@@ -11,7 +11,7 @@ from uuid import UUID
 import jwt
 from argon2 import PasswordHasher
 from argon2.exceptions import InvalidHashError, VerificationError, VerifyMismatchError
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, MultiFernet
 
 from .config import get_settings
 
@@ -47,9 +47,12 @@ def ip_hash(ip: str | None) -> str | None:
     return hmac.new(get_settings().jwt_secret.encode(), ip.encode(), hashlib.sha256).hexdigest()[:32]
 
 
-def _fernet() -> Fernet:
-    digest = hashlib.sha256(("enc:" + get_settings().jwt_secret).encode()).digest()
-    return Fernet(base64.urlsafe_b64encode(digest))
+def _fernet() -> MultiFernet:
+    """Configured keys first (the first one encrypts), then the key derived from the JWT secret so data written
+    in development before keys were configured stays readable."""
+    s = get_settings()
+    derived = Fernet(base64.urlsafe_b64encode(hashlib.sha256(("enc:" + s.jwt_secret).encode()).digest()))
+    return MultiFernet([*(Fernet(k) for k in s.encryption_keys), derived])
 
 
 def encrypt_secret(value: str) -> str:

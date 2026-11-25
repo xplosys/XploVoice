@@ -22,6 +22,7 @@ dependencies = [
   "opentelemetry-instrumentation-fastapi>=0.49b0",
   "phonenumbers>=8.13",
   "cryptography>=50.0.2",
+  "httpx>=0.28",
 ]
 
 [dependency-groups]
@@ -37,6 +38,7 @@ ignore = ["S101", "B008"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S105", "S106"]
+"migrations/versions/*" = ["E501"]  # SQL seed rows read better unwrapped
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

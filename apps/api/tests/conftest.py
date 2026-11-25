@@ -2,7 +2,9 @@
 """Tests run against a real PostgreSQL (runtime role xplovoice_app, RLS enforced) and Redis.
 Synthetic data only."""
 
+import importlib.util
 import os
+import pathlib
 import uuid
 
 import pytest
@@ -18,6 +20,12 @@ os.environ.setdefault("XV_REDIS_URL", "redis://localhost:6379/15")
 os.environ.setdefault("XV_JWT_SECRET", "test-secret-test-secret-test-secret-1234")
 
 from xplovoice_api.core import ratelimit  # noqa: E402
+
+_spec = importlib.util.spec_from_file_location(
+    "seed_0002", pathlib.Path(__file__).parents[1] / "migrations/versions/0002_ai_providers.py"
+)
+_AI_SEED = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_AI_SEED)  # type: ignore[union-attr]
 from xplovoice_api.main import create_app  # noqa: E402
 
 PASSWORD = "Str0ng-Passw0rd!"
@@ -35,8 +43,17 @@ def clean(owner_engine):
     with owner_engine.begin() as c:
         c.execute(
             text(
-                "truncate audit_log, refresh_tokens, invitations, tenant_memberships, tenants, users "
-                "restart identity cascade"
+                "truncate audit_log, refresh_tokens, invitations, tenant_memberships, tenants, users, "
+                "platform_ai_routes restart identity cascade"
+            )
+        )
+        # Restore the AI catalog to its migration seed: tests add models, prices and provider flags.
+        c.execute(text("truncate ai_rate_cards, ai_models, platform_ai_routes cascade"))
+        c.execute(text(_AI_SEED.MOCK_SEED))
+        c.execute(
+            text(
+                "update ai_providers set managed_available = false, phi_eligible = false, baa_status = 'none', "
+                "status = 'active', rate_limit_rpm = null"
             )
         )
     ratelimit.client().flushdb()

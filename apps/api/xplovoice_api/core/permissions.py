@@ -15,16 +15,28 @@ class Perm(StrEnum):
     AGENTS_MANAGE = "agents:manage"
     CALLS_READ = "calls:read"
     BILLING_MANAGE = "billing:manage"
+    AI_READ = "ai:read"
+    AI_MANAGE = "ai:manage"
+    AI_TEST = "ai:test"
+    USAGE_READ = "usage:read"
 
 
 ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
     "owner": frozenset(Perm),
     "admin": frozenset(Perm) - {Perm.BILLING_MANAGE},
     "agent_designer": frozenset(
-        {Perm.TENANT_READ, Perm.MEMBERS_READ, Perm.AGENTS_READ, Perm.AGENTS_MANAGE, Perm.CALLS_READ}
+        {
+            Perm.TENANT_READ,
+            Perm.MEMBERS_READ,
+            Perm.AGENTS_READ,
+            Perm.AGENTS_MANAGE,
+            Perm.CALLS_READ,
+            Perm.AI_READ,
+            Perm.AI_TEST,
+        }
     ),
-    "operator": frozenset({Perm.TENANT_READ, Perm.MEMBERS_READ, Perm.AGENTS_READ, Perm.CALLS_READ}),
-    "viewer": frozenset({Perm.TENANT_READ, Perm.AGENTS_READ, Perm.CALLS_READ}),
+    "operator": frozenset({Perm.TENANT_READ, Perm.MEMBERS_READ, Perm.AGENTS_READ, Perm.CALLS_READ, Perm.AI_READ}),
+    "viewer": frozenset({Perm.TENANT_READ, Perm.AGENTS_READ, Perm.CALLS_READ, Perm.AI_READ}),
 }
 
 ROLES = tuple(ROLE_PERMISSIONS)

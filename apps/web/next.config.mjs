@@ -5,6 +5,7 @@ const csp = [
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
+  "media-src 'self' data: blob:",
   "font-src 'self'",
   "connect-src 'self'",
   "frame-ancestors 'none'",
@@ -16,6 +17,8 @@ const csp = [
 const nextConfig = {
   output: "standalone",
   poweredByHeader: false,
+  // The speech-to-text test uploads a short audio clip through a server action.
+  experimental: { serverActions: { bodySizeLimit: "6mb" } },
   async headers() {
     return [
       {
