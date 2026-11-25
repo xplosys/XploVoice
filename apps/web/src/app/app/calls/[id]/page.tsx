@@ -1,7 +1,8 @@
 // XploVoice | Copyright (c) 2026 Xplosys. All rights reserved. | Confidential - Proprietary to Xplosys
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { api, ApiError, type CallDetail } from "@/lib/api";
+import { api, ApiError, type Appointment, type CallDetail, type Lead, type Ticket, type ToolExecution } from "@/lib/api";
+import { EXEC_TONE, label } from "@/lib/tones";
 import { can, getMe } from "@/lib/me";
 import { Badge, Card } from "@/components/ui";
 import { callTone } from "@/lib/utils";
@@ -21,6 +22,15 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
     throw e;
   });
   const turns = call.events.filter((e) => e.type === "turn.metrics").map((e) => e.data as Metrics);
+  const q = `call_id=${encodeURIComponent(call.id)}`;
+  const none = <T,>() => Promise.resolve([] as T[]);
+  const [execs, appts, leads, tickets] = await Promise.all([
+    api<ToolExecution[]>(`/v1/tools/executions?${q}`).catch(() => [] as ToolExecution[]),
+    can(me, "workflows:read") ? api<Appointment[]>(`/v1/appointments?${q}`).catch(() => [] as Appointment[]) : none<Appointment>(),
+    can(me, "workflows:read") ? api<Lead[]>(`/v1/leads?${q}`).catch(() => [] as Lead[]) : none<Lead>(),
+    can(me, "support:read") ? api<Ticket[]>(`/v1/tickets?${q}`).catch(() => [] as Ticket[]) : none<Ticket>(),
+  ]);
+  const retrieved = call.events.filter((e) => e.type === "kb.retrieved").length;
   const notable = call.events.filter((e) => !["turn.metrics", "state.changed"].includes(e.type));
   return (
     <div className="space-y-6">
@@ -59,7 +69,20 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
           </div>
         )}
       </Card>
-      <Card className="overflow-x-auto p-0">
+      {(execs.length > 0 || appts.length + leads.length + tickets.length > 0 || retrieved > 0) && (
+        <Card>
+          <h2 className="mb-2 font-medium">Actions on this call</h2>
+          {retrieved > 0 && <p className="mb-2 text-sm text-slate-600">The agent looked up its knowledge base on {retrieved} turn{retrieved === 1 ? "" : "s"}.</p>}
+          {execs.length > 0 && <ul className="mb-3 space-y-1 text-sm">{execs.map((e) => (
+            <li key={e.id}>{new Date(e.created_at).toLocaleTimeString()} · {e.label} <Badge tone={EXEC_TONE[e.status] ?? "slate"}>{label(e.status)}</Badge>{e.error && <span className="text-xs text-slate-500"> · {e.error}</span>}</li>))}</ul>}
+          <ul className="space-y-1 text-sm">
+            {appts.map((a) => <li key={a.id}>Appointment <span className="font-mono text-xs">{a.reference}</span> · {a.local_start.replace("T", " ")} · {a.customer_name} · <Link className="underline" href="/app/appointments">{a.status}</Link></li>)}
+            {leads.map((l) => <li key={l.id}>Lead <Link className="underline" href={`/app/leads/${l.id}`}>{l.name}</Link> · {l.status}</li>)}
+            {tickets.map((t) => <li key={t.id}>Ticket <Link className="underline" href={`/app/tickets/${t.id}`}>{t.reference}</Link> · {t.subject} · {t.status}</li>)}
+          </ul>
+        </Card>
+      )}
+      {turns.length > 0 && <Card className="overflow-x-auto p-0">
         <h2 className="px-6 pt-5 font-medium">Response timing (ms)</h2>
         <p className="px-6 text-xs text-slate-500">First audible response is measured from the moment the caller stopped speaking, including the pause the agent waits for.</p>
         <table className="mt-3 w-full text-left text-sm">
@@ -78,7 +101,7 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
             ))}
           </tbody>
         </table>
-      </Card>
+      </Card>}
       <Card>
         <h2 className="mb-2 font-medium">Events</h2>
         {notable.length === 0 ? <p className="text-sm text-slate-600">None.</p> : (

@@ -38,6 +38,7 @@ from .schemas import (
 
 router = APIRouter(tags=["agents"])
 LIVE = ("published", "paused")
+LATER_FIELDS = ("booking_calendar_id",)
 
 
 # ---------------------------------------------------------------------------------------------------- helpers
@@ -45,7 +46,10 @@ def stored(name: str, cfg: AgentConfig) -> tuple[dict, str]:
     """The JSON kept on a version and its content hash. The agent's name is part of the version because the
     engine introduces itself by it."""
     body = cfg.model_dump(mode="json") | {"agent_name": name}
-    digest = hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+    # Fields added after Phase 4 are left out of the hash while unset, so upgrading doesn't make an unchanged
+    # agent look changed.
+    hashed = {k: v for k, v in body.items() if not (k in LATER_FIELDS and v is None)}
+    digest = hashlib.sha256(json.dumps(hashed, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
     return body, digest
 
 
@@ -81,7 +85,12 @@ def tested(session: Session, version_id: UUID) -> int:
         session.scalar(
             select(func.count())
             .select_from(Call)
-            .where(Call.agent_version_id == version_id, Call.direction == "test", Call.status == "completed")
+            .where(
+                Call.agent_version_id == version_id,
+                Call.direction == "test",
+                Call.status == "completed",
+                Call.channel != "chat",  # a typed chat doesn't test speech, so it doesn't unlock publishing
+            )
         )
         or 0
     )

@@ -104,6 +104,7 @@ def test_all_builder_fields_round_trip(client, owner_engine):
     t = register(client)
     mock_routes(client, t, owner_engine)
     llm, stt, tts = (model_id(owner_engine, "mock", k) for k in ("mock-chat", "mock-stt", "mock-tts"))
+    cal = client.post("/v1/booking-calendars", headers=auth(t), json={"name": "Chairs"}).json()
     cfg = {
         "business_purpose": "Book cleanings for a dental clinic.",
         "agent_type": "appointment_booking",
@@ -115,6 +116,7 @@ def test_all_builder_fields_round_trip(client, owner_engine):
         "ai": {"llm_model_id": llm, "stt_model_id": stt, "tts_model_id": tts, "voice": "mock-voice"},
         "knowledge_base_ids": [],
         "tools": ["check_availability", "book_appointment"],
+        "booking_calendar_id": cal["id"],
         "business_hours": {
             "enabled": True,
             "timezone": "Asia/Kolkata",
@@ -153,7 +155,8 @@ def test_all_builder_fields_round_trip(client, owner_engine):
     r = client.get(f"/v1/agents/{a['id']}/readiness", headers=auth(t)).json()
     assert r["ready"] is True and r["tested"] is False
     levels = {x["key"]: x["level"] for x in r["checks"]}
-    assert levels["provider.llm"] == "ok" and levels["tools"] == "warning" and levels["recording"] == "warning"
+    assert levels["provider.llm"] == "ok" and levels["recording"] == "warning"
+    assert levels["tool.book_appointment"] == "ok" and c["booking_calendar_id"] == cal["id"]
 
 
 @pytest.mark.parametrize(

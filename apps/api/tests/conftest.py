@@ -12,6 +12,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 
 os.environ.setdefault("XV_ENVIRONMENT", "test")
+os.environ.setdefault("XV_WEBHOOK_DISPATCHER", "false")
 os.environ.setdefault("XV_DATABASE_URL", "postgresql+psycopg://xplovoice_app:xplovoice_app@localhost:5432/xplovoice")
 os.environ.setdefault(
     "XV_MIGRATION_DATABASE_URL", "postgresql+psycopg://xplovoice_owner:xplovoice_owner@localhost:5432/xplovoice"

@@ -53,7 +53,12 @@ function Later({ children }: { children: ReactNode }) {
 
 /** The agent builder: every MP section 9 setting. Saving writes a new immutable version (when something changed);
  * it never changes what live callers reach. That only happens when a version is published. */
-export function AgentBuilder({ agent, models, canEdit }: { agent: Agent; models: ModelOptions; canEdit: boolean }) {
+export type KbOption = { id: string; name: string; status: string; ready_documents: number };
+export type CalendarOption = { id: string; name: string; status: string };
+
+export function AgentBuilder({ agent, models, canEdit, knowledge = [], calendars = [] }: {
+  agent: Agent; models: ModelOptions; canEdit: boolean; knowledge?: KbOption[]; calendars?: CalendarOption[];
+}) {
   const router = useRouter();
   const [name, setName] = useState(agent.name);
   const [description, setDescription] = useState(agent.description);
@@ -230,14 +235,25 @@ export function AgentBuilder({ agent, models, canEdit }: { agent: Agent; models:
         </>)}
 
         {section === "knowledge" && (<>
-          <Field label="Knowledge base" id="kb"><p className="text-sm text-slate-600">{c.knowledge_base_ids.length ? `${c.knowledge_base_ids.length} attached` : "None attached."}</p></Field>
-          <Later>Awaiting Phase 5: knowledge bases (upload, scanning and search) are built in Phase 5. You&apos;ll attach them here then.</Later>
-          <Field label="Tool permissions" hint="Choose which business actions this agent may take.">
+          <Field label="Knowledge bases" hint="The agent answers questions from these. Only active knowledge bases are searched.">
+            {knowledge.length === 0 ? <p className="text-sm text-slate-600">No knowledge bases yet. Create one under Knowledge base.</p> : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {knowledge.map((k) => <Check key={k.id} label={`${k.name}${k.status !== "active" ? " (archived)" : ""} · ${k.ready_documents} doc${k.ready_documents === 1 ? "" : "s"}`}
+                  checked={c.knowledge_base_ids.includes(k.id)}
+                  onChange={(v) => set("knowledge_base_ids", v ? [...c.knowledge_base_ids, k.id] : c.knowledge_base_ids.filter((x) => x !== k.id))} />)}
+              </div>)}
+          </Field>
+          <Field label="Tool permissions" hint="Business actions this agent may take. Each also needs the tool turned on under Business tools.">
             <div className="grid gap-2 sm:grid-cols-2">
               {TOOLS.map(([k, label]) => <Check key={k} label={label} checked={c.tools.includes(k)}
                 onChange={(v) => set("tools", v ? [...c.tools, k] : c.tools.filter((x) => x !== k))} />)}
             </div></Field>
-          <Later>Awaiting Phase 5: permissions are saved with the version, but the tool gateway that runs them arrives in Phase 5. Until then the agent can&apos;t book, look up or create anything.</Later>
+          <Field label="Booking calendar" id="cal" hint="Where the appointment tools look for free times and book.">
+            <Select id="cal" value={c.booking_calendar_id ?? ""} onChange={(e) => set("booking_calendar_id", e.target.value || null)}>
+              <option value="">None</option>
+              {calendars.map((k) => <option key={k.id} value={k.id}>{k.name}{k.status !== "active" ? " (archived)" : ""}</option>)}
+            </Select></Field>
+          <Later>Looking up orders needs an order system connected under Integrations, and SMS delivery needs an SMS provider. Both are awaiting configuration: the agent says so instead of pretending.</Later>
         </>)}
 
         {canEdit && (

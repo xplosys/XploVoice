@@ -38,8 +38,8 @@ approved the build to proceed on the proposal; the formal baseline document stil
 | CR-017 | Vertical-slice definition of done, dependency graph, status register | All | High | Partial: [module register](module-register.md) |
 | CR-018 | Customer-owned provider credentials | M03 | Medium | Implemented for AI providers: Fernet-encrypted, hint-only display, verify and revoke |
 | CR-019 | Ten agent templates | M05 | Low | Implemented: starting configurations written by XploVoice (no document details them), seeded by migration 0004, every field editable; healthcare template carries a non-editable administrative-only guardrail |
-| CR-020 | KB malware scanning, document versioning, retrieval audit | M12 | Medium | Open |
-| CR-021 | Integration framework (OAuth, sync logs, retries) | M13 | Medium | Open |
+| CR-020 | KB malware scanning, document versioning, retrieval audit | M12 | Medium | Partial: scanning before storage (ClamAV or development-only built-in check) and retrieval events per turn (`kb.retrieved`, ids only); document versioning open |
+| CR-021 | Integration framework (OAuth, sync logs, retries) | M13 | Medium | Partial: event outbox, signed webhooks, retries, delivery log; OAuth connectors awaiting configuration |
 | CR-022 | Subscriptions, PAYG, invoices, FX, cost and charge ledgers | M15 | Medium | Partial: usage events and provider cost ledger; charging in Phase 7 |
 | CR-023 | Resolve M07/M22 cycle | M07, M22 | High | Accepted (split) |
 | CR-024 | Public marketing site pages | Web | Low | Implemented (content makes no compliance claims) |

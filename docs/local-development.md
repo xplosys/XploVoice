@@ -50,3 +50,16 @@ at `XV_LIVEKIT_URL`.
 Tests and the benchmark use a scripted caller made of synthetic audio instead of LiveKit. It is development and
 test only:
 `XV_WORKER_CHANNEL=scripted XV_WORKER_SCRIPT="silence:2000,tone:800,silence:3000" uv run python -m xplovoice_worker`.
+
+## Knowledge, tools and integrations (Phase 5)
+
+- **Knowledge base**: create one, add text or upload a file (PDF, Word, text, Markdown or CSV, up to 5 MB), then
+  grant it to an agent under **Knowledge and tools**. Uploads are scanned first. Set `XV_CLAMAV_URL=tcp://host:3310`
+  to use ClamAV; without it a built-in check is used, in development and test only.
+- **Booking**: create a calendar under **Appointments** and choose it on the agent. Org-wide holidays close every
+  calendar and the agents' business hours.
+- **Text chat test**: on an agent's **Test call** page, type as a caller. The agent uses the same knowledge and
+  tools as on a call. Chats are recorded under Calls but don't count as the test call needed to publish.
+- **Approvals**: cancelling needs a person's approval by default. Approve or deny under **Business tools**.
+- **Webhooks**: add one under **Integrations**. The address must be public https. The dispatcher runs inside the
+  API (`XV_WEBHOOK_DISPATCHER=true`, default). SMS, email and CRM connectors are awaiting configuration.

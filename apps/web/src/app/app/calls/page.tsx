@@ -31,7 +31,7 @@ export default async function CallsPage() {
                 <tr key={c.id} className="border-b border-slate-100 last:border-0">
                   <td className="px-6 py-2"><Link className="text-brand-700 underline" href={`/app/calls/${c.id}`}>{new Date(c.created_at).toLocaleString()}</Link></td>
                   <td className="px-4 py-2">{c.agent_name} <span className="text-xs text-slate-500">v{c.agent_version}</span></td>
-                  <td className="px-4 py-2">{c.channel === "browser" ? "Browser test" : c.channel}</td>
+                  <td className="px-4 py-2">{c.channel === "browser" ? "Browser test" : c.channel === "chat" ? "Text chat" : c.channel}</td>
                   <td className="px-4 py-2"><Badge tone={callTone(c.status)}>{c.status}</Badge>{c.end_reason && <span className="ml-2 text-xs text-slate-500">{c.end_reason.replace("_", " ")}</span>}</td>
                   <td className="px-4 py-2 text-right">{c.duration_seconds ? `${Number(c.duration_seconds).toFixed(0)} s` : "–"}</td>
                 </tr>

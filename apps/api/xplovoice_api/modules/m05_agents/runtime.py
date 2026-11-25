@@ -3,7 +3,7 @@
 decision for this moment, and the flat settings the engine reads. Done on the server so a worker never decides
 policy (guardrails, hours, escalation) itself."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -39,12 +39,19 @@ DAY_NAMES = {
 }
 
 
-def is_open(hours: BusinessHours, at: datetime) -> bool:
+def local_day(hours: BusinessHours, at: datetime) -> date:
+    return at.astimezone(ZoneInfo(hours.timezone)).date()
+
+
+def is_open(hours: BusinessHours, at: datetime, closed_days: frozenset[date] = frozenset()) -> bool:
     """True when business hours are off, or `at` (timezone-aware) falls in one of today's windows in the agent's
-    time zone. Windows are half-open: 09:00-18:00 is open at 09:00 and closed at 18:00."""
+    time zone and today isn't an organization holiday. Windows are half-open: 09:00-18:00 is open at 09:00 and
+    closed at 18:00."""
     if not hours.enabled:
         return True
     local = at.astimezone(ZoneInfo(hours.timezone))
+    if local.date() in closed_days:
+        return False
     hhmm = local.strftime("%H:%M")
     return any(w.start <= hhmm < w.end for w in hours.weekly.get(DAYS[local.weekday()], []))
 
@@ -73,6 +80,18 @@ def system_prompt(cfg: AgentConfig, agent_name: str) -> str:
     if cfg.escalation.enabled:
         lines.append(
             "If the caller asks for a person, don't argue: say you'll arrange it. The system then hands the call over."
+        )
+    if cfg.tools:
+        lines.append(
+            "You can use business tools to check availability, book, create tickets and similar. Use a tool whenever "
+            "the caller asks for something it does. Never invent times, references or results: say only what a tool "
+            "returned. Confirm the details with the caller before booking, changing or cancelling. Read times out "
+            "using the 'say' text the tool gives. If a tool fails, explain simply and offer to take a message."
+        )
+    if cfg.knowledge_base_ids:
+        lines.append(
+            "When reference information is provided, answer questions from it. If it doesn't cover the question, "
+            "say you don't know rather than guessing."
         )
     if cfg.agent_type == "healthcare_admin":
         lines.append(HEALTHCARE_GUARDRAIL)

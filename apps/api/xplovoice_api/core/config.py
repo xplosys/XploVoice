@@ -56,6 +56,14 @@ class Settings(BaseSettings):
     max_concurrent_calls_per_tenant: int = 2
     max_call_seconds: int = 900  # hard platform ceiling; agents can set less
 
+    # Phase 5. ClamAV daemon for knowledge-base uploads, e.g. "tcp://clamav:3310". Without it, staging and
+    # production refuse uploads; development and test use a built-in check that is not a malware scanner.
+    clamav_url: str | None = None
+    tool_timeout_seconds: float = 8.0
+    # Outbound webhooks (M13): the in-process dispatcher. Off in tests, which drive it directly.
+    webhook_dispatcher: bool = True
+    webhook_timeout_seconds: float = 10.0
+
     @property
     def is_production_like(self) -> bool:
         return self.environment in ("staging", "production")

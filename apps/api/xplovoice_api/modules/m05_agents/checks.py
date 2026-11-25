@@ -5,7 +5,7 @@ served now."""
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..m03_ai.models import Model, PlatformRoute, TenantRoute
@@ -122,23 +122,8 @@ def readiness(session: Session, cfg: AgentConfig) -> list[Check]:
                 "the agent says the hand-over message and ends the call.",
             )
         )
-    if cfg.knowledge_base_ids:
-        out.append(
-            Check(
-                key="knowledge_base",
-                level="warning",
-                message="Knowledge bases are connected in Phase 5. Until then the agent does not search them.",
-            )
-        )
-    if cfg.tools:
-        out.append(
-            Check(
-                key="tools",
-                level="warning",
-                message="Tool permissions are saved, but business tools run from Phase 5. Until then the agent "
-                "can't book, look up or create anything.",
-            )
-        )
+    out += _knowledge_checks(session, cfg)
+    out += _tool_checks(session, cfg)
     if cfg.recording.policy != "off":
         out.append(
             Check(
@@ -162,4 +147,86 @@ def readiness(session: Session, cfg: AgentConfig) -> list[Check]:
                 "Use synthetic data only; health information must not be sent to providers without an approved BAA.",
             )
         )
+    return out
+
+
+def _knowledge_checks(session: Session, cfg: AgentConfig) -> list[Check]:
+    from ..m12_knowledge.models import KbDocument, KnowledgeBase
+
+    out: list[Check] = []
+    for kb_id in cfg.knowledge_base_ids:
+        kb = session.get(KnowledgeBase, kb_id)  # RLS: another tenant's id reads as missing
+        if kb is None:
+            out.append(Check(key="knowledge_base", level="error", message="A chosen knowledge base no longer exists."))
+            continue
+        if kb.status != "active":
+            out.append(
+                Check(
+                    key="knowledge_base",
+                    level="error",
+                    message=f'The knowledge base "{kb.name}" is archived. Restore it or remove it.',
+                )
+            )
+            continue
+        ready = session.scalar(
+            select(func.count()).select_from(KbDocument).where(KbDocument.kb_id == kb.id, KbDocument.status == "ready")
+        )
+        if not ready:
+            out.append(
+                Check(
+                    key="knowledge_base",
+                    level="warning",
+                    message=f'The knowledge base "{kb.name}" has no documents yet, so there is nothing to search.',
+                )
+            )
+        else:
+            out.append(
+                Check(
+                    key="knowledge_base",
+                    level="ok",
+                    message=f'Answers questions from "{kb.name}" ({ready} document{"s" if ready != 1 else ""}).',
+                )
+            )
+    return out
+
+
+def _tool_checks(session: Session, cfg: AgentConfig) -> list[Check]:
+    from ..m09_tools.gateway import policy
+    from ..m09_tools.registry import TOOLS, unavailable
+
+    out: list[Check] = []
+    if not cfg.tools:
+        return out
+    usable, _ = candidates(session, kind="llm", language=cfg.language, need_streaming=True, need_tools=True)
+    if not usable:
+        out.append(
+            Check(
+                key="tools.model",
+                level="warning",
+                message="None of your language models can use tools (function calling), so calls will "
+                "answer without them. Add a model that supports tools under AI providers.",
+            )
+        )
+    for key in cfg.tools:
+        t = TOOLS[key]
+        enabled, approval = policy(session, key)
+        why = unavailable(session, key, cfg)
+        if not enabled:
+            out.append(
+                Check(
+                    key=f"tool.{key}",
+                    level="warning",
+                    message=f"{t.label}: turned off for your organization under Business tools.",
+                )
+            )
+        elif why:
+            level = (
+                "error"
+                if key in ("check_availability", "book_appointment", "reschedule_appointment", "cancel_appointment")
+                else "warning"
+            )
+            out.append(Check(key=f"tool.{key}", level=level, message=f"{t.label}: {why}"))
+        else:
+            extra = " Each request waits for a staff member's approval." if approval else ""
+            out.append(Check(key=f"tool.{key}", level="ok", message=f"{t.label}: ready.{extra}"))
     return out

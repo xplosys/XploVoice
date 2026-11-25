@@ -9,13 +9,32 @@ from typing import Literal
 
 import httpx
 
-Role = Literal["system", "user", "assistant"]
+Role = Literal["system", "user", "assistant", "tool"]
+
+
+@dataclass(frozen=True)
+class ToolCall:
+    """A model's request to run one tool. Arguments that weren't valid JSON arrive as {"__invalid_json__": true},
+    which every tool schema refuses."""
+
+    id: str
+    name: str
+    arguments: dict
+
+
+@dataclass(frozen=True)
+class ToolSpec:
+    name: str
+    description: str
+    parameters: dict  # JSON Schema
 
 
 @dataclass(frozen=True)
 class ChatMessage:
     role: Role
     content: str
+    tool_calls: tuple[ToolCall, ...] = ()  # assistant turns that asked for tools
+    tool_call_id: str | None = None  # role "tool": which call this is the result of
 
 
 @dataclass(frozen=True)
@@ -24,6 +43,17 @@ class LLMRequest:
     messages: list[ChatMessage]
     max_tokens: int = 512
     temperature: float = 0.4
+    tools: tuple[ToolSpec, ...] = ()
+
+
+def parse_arguments(raw: str) -> dict:
+    import json
+
+    try:
+        v = json.loads(raw or "{}")
+    except ValueError:
+        return {"__invalid_json__": True}
+    return v if isinstance(v, dict) else {"__invalid_json__": True}
 
 
 @dataclass
@@ -37,7 +67,7 @@ class LLMUsage:
     output_tokens: int
 
 
-LLMEvent = TextDelta | LLMUsage
+LLMEvent = TextDelta | LLMUsage | ToolCall
 
 
 @dataclass

@@ -2,7 +2,9 @@
 """Deterministic mock provider for development and automated tests ONLY. The router refuses it in staging and
 production. Failure can be injected through Endpoint.extra for failover tests."""
 
+import json
 import math
+import re
 from collections.abc import AsyncIterator
 
 from .base import (
@@ -15,6 +17,7 @@ from .base import (
     STTAdapter,
     STTResult,
     TextDelta,
+    ToolCall,
     TTSAdapter,
     TTSResult,
     pcm16_to_wav,
@@ -29,11 +32,72 @@ def _fail(kind: str) -> None:
         raise ProviderError(f"mock: injected {kind} failure", status=503)
 
 
+def _mock_tool(req: LLMRequest) -> ToolCall | None:
+    """Deterministic stand-in for a model choosing tools, so tool flows can be tested and demonstrated without a
+    vendor account. Keyword rules on the caller's last message; chains check_availability -> book_appointment."""
+    names = {t.name for t in req.tools}
+    if not names:
+        return None
+    last_user = max((i for i, m in enumerate(req.messages) if m.role == "user"), default=-1)
+    if last_user < 0:
+        return None
+    said = req.messages[last_user].content
+    low = said.lower()
+    after = req.messages[last_user + 1 :]
+    done = {c.name for m in after for c in m.tool_calls}
+    results = {m.tool_call_id: m.content for m in after if m.role == "tool"}
+    n = len(done)
+
+    def call(name: str, args: dict) -> ToolCall | None:
+        return ToolCall(f"mock_{n}_{name}", name, args) if name in names and name not in done else None
+
+    name_m = re.search(r"my name is ([A-Za-z][A-Za-z .'-]{0,40}?)(?:[,.!?]|$| and )", said, re.I)
+    phone_m = re.search(r"(\+?\d[\d -]{8,}\d)", said)
+    name = name_m.group(1).strip() if name_m else "Test Caller"
+    ref = re.search(r"\b([AT]-[A-Z0-9]{6})\b", said.upper())
+    if "cancel" in low and ref:
+        return call(
+            "cancel_appointment", {"reference": ref.group(1)} | ({"phone": phone_m.group(1)} if phone_m else {})
+        )
+    if "book" in low or "appointment" in low or "available" in low:
+        if "check_availability" not in done:
+            return call("check_availability", {})
+        if "book" in low and "book_appointment" not in done:
+            avail = next((v for k, v in results.items() if k and "check_availability" in k), "{}")
+            try:
+                first = json.loads(avail).get("slots", [{}])[0].get("start")
+            except (ValueError, IndexError, AttributeError):
+                first = None
+            if first:
+                args = {"start": first, "name": name} | ({"phone": phone_m.group(1)} if phone_m else {})
+                return call("book_appointment", args)
+        return None
+    if any(w in low for w in ("problem", "complaint", "broken", "not working", "issue")):
+        return call("create_ticket", {"subject": said[:120], "description": said[:1000]})
+    if any(w in low for w in ("call me back", "interested", "quote", "pricing")):
+        args = {"name": name, "interest": said[:500], "wants_callback": "call me back" in low}
+        return call("create_lead", args | ({"phone": phone_m.group(1)} if phone_m else {}))
+    return None
+
+
 class MockChat(LLMAdapter):
     async def stream_chat(self, ep: Endpoint, req: LLMRequest) -> AsyncIterator[LLMEvent]:
         _fail("llm")
+        tool = _mock_tool(req)
+        if tool:
+            yield tool
+            yield LLMUsage(sum(len(m.content.split()) for m in req.messages), 12)
+            return
         prompt = next((m.content for m in reversed(req.messages) if m.role == "user"), "")
-        reply = f"[mock reply, development only] You said: {prompt[:200]}"
+        last = req.messages[-1] if req.messages else None
+        ref = next((m.content for m in req.messages if m.role == "system" and m.content.startswith("Reference")), "")
+        if last is not None and last.role == "tool":
+            reply = f"[mock reply, development only] Tool result: {last.content[:300]}"
+        elif ref:
+            passage = ref.split(":\n", 1)[-1].split("\n\n")[0]
+            reply = f"[mock reply, development only] From the knowledge base: {passage[:300]}"
+        else:
+            reply = f"[mock reply, development only] You said: {prompt[:200]}"
         words = reply.split(" ")
         for i, w in enumerate(words):
             yield TextDelta(w if i == 0 else " " + w)

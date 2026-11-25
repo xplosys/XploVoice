@@ -21,8 +21,8 @@ const csp = [
 const nextConfig = {
   output: "standalone",
   poweredByHeader: false,
-  // The speech-to-text test uploads a short audio clip through a server action.
-  experimental: { serverActions: { bodySizeLimit: "6mb" } },
+  // Audio clips (speech-to-text test) and knowledge-base files (up to 5 MB, base64) go through server actions.
+  experimental: { serverActions: { bodySizeLimit: "8mb" } },
   async headers() {
     return [
       {

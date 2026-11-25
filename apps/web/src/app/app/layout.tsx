@@ -25,7 +25,12 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     ...(can(me, "usage:read") ? [{ href: "/app/usage", label: "Usage" }] : []),
     ...(can(me, "agents:read") ? [{ href: "/app/agents", label: "Voice agents" }] : []),
     ...(can(me, "calls:read") ? [{ href: "/app/calls", label: "Calls" }] : []),
-    { href: "/app/knowledge", label: "Knowledge base", phase: 5 },
+    ...(can(me, "knowledge:read") ? [{ href: "/app/knowledge", label: "Knowledge base" }] : []),
+    ...(can(me, "workflows:read") ? [{ href: "/app/appointments", label: "Appointments" }, { href: "/app/leads", label: "Leads" },
+      { href: "/app/follow-ups", label: "Follow-ups" }] : []),
+    ...(can(me, "support:read") ? [{ href: "/app/tickets", label: "Tickets" }, { href: "/app/notifications", label: "Messages" }] : []),
+    ...(can(me, "agents:read") ? [{ href: "/app/tools", label: "Business tools" }] : []),
+    ...(can(me, "tenant:read") ? [{ href: "/app/integrations", label: "Integrations" }] : []),
     { href: "/app/numbers", label: "Phone numbers", phase: 6 },
     { href: "/app/billing", label: "Billing", phase: 7 },
   ];

@@ -6,8 +6,8 @@ The 25 MP section 9 fields map onto this model as follows (name and description 
 agent name, description -> Agent; business purpose, agent type, system prompt, personality, tone, greeting,
 language -> top level; LLM provider + model, STT provider, TTS provider, voice provider + voice -> `ai`
 (a provider is chosen by choosing one of its models; a voice belongs to the chosen TTS model, so the voice
-provider is the TTS model's provider); knowledge base, tool permissions -> `knowledge_base_ids`, `tools`
-(executed from Phase 5); business hours -> `business_hours`; silence timeout, maximum call duration ->
+provider is the TTS model's provider); knowledge base, tool permissions -> `knowledge_base_ids`, `tools`,
+`booking_calendar_id` (run from Phase 5); business hours -> `business_hours`; silence timeout, maximum call duration ->
 `limits`; interruption -> `interruption`; escalation rules -> `escalation`; call transfer -> `transfer`
 (executed by telephony, Phase 6); recording policy -> `recording` (recordings arrive in Phase 6);
 fallback behaviour -> `fallback`."""
@@ -36,8 +36,8 @@ Tone = Literal["friendly", "professional", "warm", "calm", "energetic", "concise
 Day = Literal["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
 DAYS: tuple[Day, ...] = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 
-# Business tools an agent may be granted. The tool gateway that executes them is built in Phase 5 (M09/M11-M14);
-# until then a grant is stored with the version and has no effect on calls.
+# Business tools an agent may be granted. The tool gateway (modules/m09_tools) runs them during calls from Phase 5;
+# a tool runs only when it is granted here, enabled in the tenant's tool policy, and its prerequisites exist.
 TOOL_KEYS = (
     "check_availability",
     "book_appointment",
@@ -218,6 +218,7 @@ class AgentConfig(BaseModel):
     ai: AiSelection = Field(default_factory=AiSelection)
     knowledge_base_ids: list[UUID] = Field(default_factory=list, max_length=20)
     tools: list[ToolKey] = Field(default_factory=list)
+    booking_calendar_id: UUID | None = None  # the calendar the appointment tools book into (Phase 5)
     business_hours: BusinessHours = Field(default_factory=BusinessHours)
     limits: Limits = Field(default_factory=Limits)
     interruption: Interruption = Field(default_factory=Interruption)

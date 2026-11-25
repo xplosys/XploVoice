@@ -21,6 +21,29 @@ class VoiceSessionOut(BaseModel):
     expires_in: int
 
 
+class ChatStartIn(BaseModel):
+    version_id: UUID | None = None
+
+
+class ChatStartOut(BaseModel):
+    call_id: UUID
+    agent_name: str
+    version: int
+    greeting: str | None
+
+
+class ChatIn(BaseModel):
+    text: str = Field(min_length=1, max_length=1000)
+
+
+class ChatReplyOut(BaseModel):
+    reply: str
+    tools: list[dict[str, Any]]
+    retrieval: list[dict[str, Any]]
+    ended: bool
+    end_reason: str | None
+
+
 class CallOut(BaseModel):
     id: UUID
     agent_id: UUID

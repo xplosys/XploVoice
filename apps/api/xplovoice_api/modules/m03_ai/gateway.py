@@ -22,7 +22,7 @@ from ...core.ratelimit import client
 from ..m15_usage import metering
 from . import breaker
 from .adapters import adapter_for
-from .adapters.base import LLMRequest, LLMUsage, ProviderError, STTResult, TextDelta, TTSResult
+from .adapters.base import LLMRequest, LLMUsage, ProviderError, STTResult, TextDelta, ToolCall, TTSResult
 from .routing import Candidate, Skipped, candidates
 
 ATTEMPTS = Counter("xv_ai_attempts_total", "AI provider attempts", ["kind", "provider", "outcome"])
@@ -208,9 +208,12 @@ async def chat_stream(
     phi: bool = False,
     outcome: Outcome | None = None,
     prefer: UUID | None = None,
-) -> AsyncIterator[str]:
-    """Streams text with failover allowed only until the first token: after that, switching provider would
-    repeat or contradict what the caller has already heard. Usage is metered when the provider reports it."""
+) -> AsyncIterator[str | ToolCall]:
+    """Streams text (and, when the request offers tools, ToolCall requests) with failover allowed only until the
+    first output: after that, switching provider would repeat or contradict what the caller has already heard.
+    Usage is metered when the provider reports it. A request with tools is routed only to models that support
+    function calling."""
+    need_tools = need_tools or bool(req.tools)
     cands, skipped = await _route(
         m, "llm", language=language, need_streaming=True, need_tools=need_tools, phi=phi, prefer=prefer
     )
@@ -219,7 +222,11 @@ async def chat_stream(
     for c in cands:
         adapter = adapter_for(c.provider.adapter, "llm")
         model_req = LLMRequest(
-            model=c.model.model_key, messages=req.messages, max_tokens=req.max_tokens, temperature=req.temperature
+            model=c.model.model_key,
+            messages=req.messages,
+            max_tokens=req.max_tokens,
+            temperature=req.temperature,
+            tools=req.tools,
         )
         for n in range(MAX_TRIES_PER_CANDIDATE):
             if not breaker.allow(c.provider.key):
@@ -242,6 +249,11 @@ async def chat_stream(
                                 LATENCY.labels("llm", c.provider.key).observe(time.perf_counter() - start)
                             out_chars += len(ev.text)
                             yield ev.text
+                        elif isinstance(ev, ToolCall):
+                            if not started:
+                                started = True
+                                LATENCY.labels("llm", c.provider.key).observe(time.perf_counter() - start)
+                            yield ev
                         elif isinstance(ev, LLMUsage):
                             usage = ev
             except (GeneratorExit, asyncio.CancelledError):

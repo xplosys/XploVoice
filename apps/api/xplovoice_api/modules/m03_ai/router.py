@@ -333,7 +333,7 @@ async def test_chat(
         text = "".join(
             [
                 t
-                async for t in gateway.chat_stream(
+                async for t in gateway.chat_stream(  # no tools offered, so only text arrives
                     m, LLMRequest(model="", messages=msgs), language=data.language, outcome=outcome
                 )
             ]

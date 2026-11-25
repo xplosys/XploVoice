@@ -126,6 +126,10 @@ class HttpBackend:
                 ev = json.loads(line[6:])
                 if "t" in ev:
                     yield ev["t"]
+                elif "tool" in ev:  # a business tool is running on the server (Phase 5)
+                    info.setdefault("tools", []).append(ev["tool"])
+                    if callable(info.get("on_tool")):
+                        info["on_tool"](ev["tool"])
                 elif "error" in ev:
                     raise NoProviderError(ev["error"])
                 elif ev.get("done"):

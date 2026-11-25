@@ -21,6 +21,17 @@ class Perm(StrEnum):
     AI_MANAGE = "ai:manage"
     AI_TEST = "ai:test"
     USAGE_READ = "usage:read"
+    # Phase 5
+    KNOWLEDGE_READ = "knowledge:read"
+    KNOWLEDGE_MANAGE = "knowledge:manage"
+    WORKFLOWS_READ = "workflows:read"  # calendars, appointments, leads, follow-ups
+    WORKFLOWS_MANAGE = "workflows:manage"
+    SUPPORT_READ = "support:read"  # tickets and the notification log
+    SUPPORT_MANAGE = "support:manage"
+    NOTIFICATIONS_MANAGE = "notifications:manage"  # write and approve the messages agents may send
+    TOOLS_MANAGE = "tools:manage"  # tenant tool policies: enabled, needs approval
+    TOOLS_APPROVE = "tools:approve"  # approve or deny a sensitive action an agent asked for
+    INTEGRATIONS_MANAGE = "integrations:manage"
 
 
 ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
@@ -36,10 +47,39 @@ ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
             Perm.CALLS_TEST,
             Perm.AI_READ,
             Perm.AI_TEST,
+            Perm.KNOWLEDGE_READ,
+            Perm.KNOWLEDGE_MANAGE,
+            Perm.WORKFLOWS_READ,
+            Perm.SUPPORT_READ,
         }
     ),
-    "operator": frozenset({Perm.TENANT_READ, Perm.MEMBERS_READ, Perm.AGENTS_READ, Perm.CALLS_READ, Perm.AI_READ}),
-    "viewer": frozenset({Perm.TENANT_READ, Perm.AGENTS_READ, Perm.CALLS_READ, Perm.AI_READ}),
+    # Front-office staff: work the appointments, leads, follow-ups and tickets the agents create.
+    "operator": frozenset(
+        {
+            Perm.TENANT_READ,
+            Perm.MEMBERS_READ,
+            Perm.AGENTS_READ,
+            Perm.CALLS_READ,
+            Perm.AI_READ,
+            Perm.KNOWLEDGE_READ,
+            Perm.WORKFLOWS_READ,
+            Perm.WORKFLOWS_MANAGE,
+            Perm.SUPPORT_READ,
+            Perm.SUPPORT_MANAGE,
+            Perm.TOOLS_APPROVE,
+        }
+    ),
+    "viewer": frozenset(
+        {
+            Perm.TENANT_READ,
+            Perm.AGENTS_READ,
+            Perm.CALLS_READ,
+            Perm.AI_READ,
+            Perm.KNOWLEDGE_READ,
+            Perm.WORKFLOWS_READ,
+            Perm.SUPPORT_READ,
+        }
+    ),
 }
 
 ROLES = tuple(ROLE_PERMISSIONS)

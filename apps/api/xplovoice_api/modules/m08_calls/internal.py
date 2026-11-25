@@ -24,11 +24,15 @@ from sqlalchemy.dialects.postgresql import insert
 from ...core.config import get_settings
 from ...core.db import session_scope
 from ...core.errors import ApiError, bad_request, conflict, not_found, unauthorized
+from ..m02_tenant.models import Tenant
 from ..m03_ai import gateway
-from ..m03_ai.adapters.base import ChatMessage, LLMRequest
+from ..m03_ai.adapters.base import ChatMessage
 from ..m05_agents.models import Agent, AgentVersion
-from ..m05_agents.runtime import engine_config, is_open
+from ..m05_agents.runtime import engine_config, is_open, local_day
 from ..m05_agents.schemas import AgentConfig
+from ..m09_tools import conversation
+from ..m11_workflows.service import Actor, org_holiday
+from ..m14_support.service import escalation_ticket
 from . import lifecycle
 from .dispatch import decode_worker_token
 from .livekit import room_token
@@ -136,8 +140,11 @@ def bootstrap(call_id: UUID, data: BootstrapIn, w: Worker = Depends(worker_auth)
         ) + 1
         cfg = AgentConfig.model_validate(version.config)
         name = str(version.config.get("agent_name") or agent.name)
+        now = datetime.now(UTC)
+        holiday = org_holiday(s, local_day(cfg.business_hours, now)) if cfg.business_hours.enabled else None
+        closed_days = frozenset({holiday.day}) if holiday else frozenset()
         open_now = not (call.options or {}).get("simulate_after_hours") and is_open(
-            cfg.business_hours, datetime.now(UTC)
+            cfg.business_hours, now, closed_days
         )
         if (call.options or {}).get("simulate_after_hours") and not cfg.business_hours.enabled:
             open_now = True  # nothing to simulate: the agent has no business hours
@@ -201,7 +208,32 @@ def record(call_id: UUID, data: RecordIn, w: Worker = Depends(worker_auth)) -> d
                 .values(tenant_id=w.tenant_id, call_id=w.call_id, **g.model_dump())
                 .on_conflict_do_nothing()
             )
+        for e in data.events:
+            if e.type == "escalation.requested" and e.data.get("action") in ("take_message", "transfer"):
+                escalate(s, w.tenant_id, w.call_id, str(e.data.get("trigger", "")), str(e.data["action"]))
     return {"ok": True}
+
+
+def escalate(s, tenant_id: UUID, call_id: UUID, trigger: str, action: str) -> None:  # type: ignore[no-untyped-def]
+    """Native escalation workflow (addendum H): a caller who asked for a person, or whom the agent couldn't
+    understand, becomes a high-priority ticket for staff, with what they said. One per call."""
+    tenant = s.get(Tenant, tenant_id)
+    assert tenant is not None
+    said = s.scalars(
+        select(TranscriptSegment.text)
+        .where(TranscriptSegment.call_id == call_id, TranscriptSegment.speaker == "caller")
+        .order_by(TranscriptSegment.seq.desc())
+        .limit(3)
+    ).all()
+    summary = "Last things the caller said:\n" + "\n".join(f"- {t}" for t in reversed(said)) if said else ""
+    call = s.get(Call, call_id)
+    actor = Actor(
+        tenant_id=tenant_id,
+        country=tenant.country_code,
+        source="chat" if call and call.channel == "chat" else "call",
+        call_id=call_id,
+    )
+    escalation_ticket(s, actor, trigger=trigger, action=action, summary=summary)
 
 
 def _meter(s, w: Worker, call: Call, request_id: str) -> gateway.Meter:  # type: ignore[no-untyped-def]
@@ -279,39 +311,71 @@ def _sse(obj: dict) -> bytes:
     return f"data: {json.dumps(obj, separators=(',', ':'))}\n\n".encode()
 
 
+def _turn(s, w: Worker, call: Call, source: str) -> conversation.Turn:  # type: ignore[no-untyped-def]
+    tenant = s.get(Tenant, w.tenant_id)
+    assert tenant is not None
+    return conversation.Turn(
+        tenant_id=w.tenant_id,
+        country=tenant.country_code,
+        business_name=tenant.name,
+        call_id=call.id,
+        version_id=call.agent_version_id,
+        cfg=_agent_cfg(s, call),
+        source=source,
+    )
+
+
+def record_turn(s, tenant_id: UUID, call_id: UUID, request_id: str, info: dict) -> None:  # type: ignore[no-untyped-def]
+    """Timeline events for what the server did during a reply: which documents were read (ids and scores, never
+    their text) and which tools ran."""
+    for typ, data in (("kb.retrieved", {"hits": info.get("retrieval")}), ("tools.used", {"tools": info.get("tools")})):
+        if data[next(iter(data))]:
+            s.execute(
+                insert(CallEvent)
+                .values(tenant_id=tenant_id, call_id=call_id, event_key=f"{request_id}:{typ}", type=typ, data=data)
+                .on_conflict_do_nothing()
+            )
+
+
 @router.post("/calls/{call_id}/llm")
 async def llm(call_id: UUID, data: WorkerLlmIn, w: Worker = Depends(worker_auth)) -> StreamingResponse:
-    """Streams the reply as server-sent events. When the worker disconnects (barge-in), the provider stream is
-    closed and the tokens consumed so far are metered."""
+    """Streams the reply as server-sent events: {"t": text}, {"tool": {...}} while a business tool runs, then
+    {"done": ...}. Retrieval and tool calls happen here, on the server (m09_tools.conversation). When the worker
+    disconnects (barge-in), the provider stream is closed and the tokens consumed so far are metered."""
     with session_scope(tenant_id=w.tenant_id) as s:
         _load(s, w)
 
     async def events() -> AsyncIterator[bytes]:
         with session_scope(tenant_id=w.tenant_id) as s:
             call = _load(s, w)
+            turn = _turn(s, w, call, "call")
             outcome = gateway.Outcome("", "", "")
-            req = LLMRequest(
-                model="", messages=[ChatMessage(m.role, m.content) for m in data.messages], max_tokens=data.max_tokens
-            )
-            stream = gateway.chat_stream(
-                _meter(s, w, call, data.request_id),
-                req,
+            msgs = [ChatMessage(m.role, m.content) for m in data.messages]
+            stream = conversation.respond(
+                turn,
+                s,
+                msgs,
                 language=data.language,
+                request_id=data.request_id,
+                meter=lambda rnd: _meter(s, w, call, data.request_id if rnd == 0 else f"{data.request_id}:r{rnd}"),
                 outcome=outcome,
-                prefer=_agent_cfg(s, call).ai.llm_model_id,
+                max_tokens=data.max_tokens,
             )
             try:
-                async for t in stream:
-                    yield _sse({"t": t})
+                async for ev in stream:
+                    yield _sse(ev)
             except gateway.NoProviderAvailableError as e:
+                record_turn(s, w.tenant_id, call.id, data.request_id, turn.info)
                 yield _sse({"error": "no_provider_available", "attempts": [asdict(a) for a in e.attempts]})
                 return
             except asyncio.CancelledError:
                 await stream.aclose()
                 if outcome.provider:
                     _used(s, call, "llm", outcome)
+                record_turn(s, w.tenant_id, call.id, data.request_id, turn.info)
                 raise
             _used(s, call, "llm", outcome)
+            record_turn(s, w.tenant_id, call.id, data.request_id, turn.info)
             yield _sse({"done": True, "provider": outcome.provider, "model": outcome.model, "units": outcome.units})
 
     return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-store"})

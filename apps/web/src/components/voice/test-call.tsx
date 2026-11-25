@@ -6,7 +6,7 @@ import { Room, RoomEvent, Track, type RemoteTrack } from "livekit-client";
 import { endCallAction, startCallAction } from "@/app/app/agents/actions";
 import { Badge, Button, Card, FormError } from "@/components/ui";
 
-type Line = { speaker: "caller" | "agent"; text: string; open: boolean };
+type Line = { speaker: "caller" | "agent" | "tool"; text: string; open: boolean };
 type Phase = "idle" | "connecting" | "waiting" | "live" | "ended";
 
 const STATE_LABEL: Record<string, string> = {
@@ -33,7 +33,7 @@ export function TestCall({ agentId, agentName, versions, latest, hasHours }: {
 
   function onData(payload: Uint8Array, topic?: string) {
     if (topic !== "xv") return;
-    let ev: { type: string; speaker?: "caller" | "agent"; text?: string; state?: string; reason?: string };
+    let ev: { type: string; speaker?: "caller" | "agent"; text?: string; state?: string; reason?: string; label?: string; status?: string };
     try { ev = JSON.parse(new TextDecoder().decode(payload)); } catch { return; }
     if (ev.type === "state" && ev.state) {
       setAgentState(ev.state);
@@ -48,6 +48,9 @@ export function TestCall({ agentId, agentName, versions, latest, hasHours }: {
         }
         return [...ls.map((l) => ({ ...l, open: false })), { speaker, text, open: speaker === "agent" }];
       });
+    } else if (ev.type === "tool" && ev.label && ev.status && ev.status !== "running") {
+      const t = `${ev.label}: ${ev.status.replaceAll("_", " ")}`;
+      setLines((ls) => [...ls.map((l) => ({ ...l, open: false })), { speaker: "tool", text: t, open: false }]);
     } else if (ev.type === "ended") {
       setEndReason(ev.reason);
       setPhase("ended");
@@ -115,7 +118,7 @@ export function TestCall({ agentId, agentName, versions, latest, hasHours }: {
       <FormError message={error} />
       <div aria-live="polite" className="min-h-40 space-y-2 rounded-md bg-slate-50 p-3 text-sm">
         {lines.length === 0 && <p className="text-slate-500">{live ? "The conversation will appear here." : "No call yet."}</p>}
-        {lines.map((l, i) => (
+        {lines.map((l, i) => l.speaker === "tool" ? <p key={i} className="text-xs text-slate-500">Action: {l.text}</p> : (
           <p key={i} className={l.speaker === "agent" ? "text-slate-900" : "text-brand-700"}>
             <span className="font-medium">{l.speaker === "agent" ? agentName : "You"}:</span> {l.text}
           </p>

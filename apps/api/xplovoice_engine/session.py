@@ -59,6 +59,7 @@ class TurnMetrics:
     endpoint_ms: int | None = None
     interrupted: bool = False
     providers: dict[str, str] = field(default_factory=dict)
+    tools: list[str] | None = None  # business tools that ran during this reply
 
     def as_dict(self) -> dict[str, Any]:
         return {k: v for k, v in self.__dict__.items() if v is not None}
@@ -328,7 +329,8 @@ class CallSession:
 
     async def _llm_clauses(self, m: TurnMetrics) -> AsyncIterator[str]:
         t = self.clock()
-        info: dict = {}
+        loop = asyncio.get_running_loop()
+        info: dict = {"on_tool": lambda tool: loop.create_task(self.channel.send({"type": "tool", **tool}))}
         splitter = ClauseSplitter()
         async for delta in self.backend.llm(list(self.messages), self.lang, self._req("llm"), info):
             if m.llm_first_token_ms is None:
@@ -340,6 +342,8 @@ class CallSession:
         m.llm_total_ms = self._wall_ms(t)
         if info.get("provider"):
             m.providers["llm"] = f"{info['provider']} / {info.get('model')}"
+        if info.get("tools"):
+            m.tools = [x["name"] for x in info["tools"] if x.get("status") != "running"]
 
     async def _preset_clauses(self, text: str) -> AsyncIterator[str]:
         splitter = ClauseSplitter()

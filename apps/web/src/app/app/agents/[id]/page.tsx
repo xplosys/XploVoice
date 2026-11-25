@@ -1,7 +1,7 @@
 // XploVoice | Copyright (c) 2026 Xplosys. All rights reserved. | Confidential - Proprietary to Xplosys
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { api, ApiError, type Agent, type AgentVersion, type Publication, type Readiness } from "@/lib/api";
+import { api, ApiError, type Agent, type AgentVersion, type Calendar, type KnowledgeBase, type Publication, type Readiness } from "@/lib/api";
 import { modelOptions, STATUS } from "@/lib/agents";
 import { can, getMe } from "@/lib/me";
 import { Badge, Card } from "@/components/ui";
@@ -24,9 +24,11 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
     if (e instanceof ApiError && e.status === 404) notFound();
     throw e;
   });
-  const [versions, readiness, history, models] = await Promise.all([
+  const [versions, readiness, history, models, knowledge, calendars] = await Promise.all([
     api<AgentVersion[]>(`${base}/versions`), api<Readiness>(`${base}/readiness`), api<Publication[]>(`${base}/history`),
     modelOptions(),
+    can(me, "knowledge:read") ? api<KnowledgeBase[]>("/v1/knowledge-bases") : Promise.resolve([] as KnowledgeBase[]),
+    can(me, "workflows:read") ? api<Calendar[]>("/v1/booking-calendars") : Promise.resolve([] as Calendar[]),
   ]);
   const st = STATUS[agent.status];
   return (
@@ -45,7 +47,8 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_22rem]">
-        <Card><AgentBuilder key={agent.version_id} agent={agent} models={models} canEdit={can(me, "agents:manage") && agent.status !== "archived"} /></Card>
+        <Card><AgentBuilder key={agent.version_id} agent={agent} models={models} knowledge={knowledge} calendars={calendars}
+          canEdit={can(me, "agents:manage") && agent.status !== "archived"} /></Card>
         <div className="space-y-6">
           <Card>
             <h2 className="mb-2 font-medium">Ready to publish? (version {readiness.version})</h2>

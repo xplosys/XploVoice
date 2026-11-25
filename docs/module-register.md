@@ -19,12 +19,12 @@ later phase), *planned*, *awaiting configuration* (code path exists but needs a 
 | M06 | Inbound routing and queues | 6 | planned | |
 | M07 | Outbound campaigns | 6 | planned | After M22-core (X-2, CR-023) |
 | M08 | Call sessions and lifecycle | 3 | done (Phase 3 scope) | `modules/m08_calls`: calls, order-tolerant lifecycle, append-only events and transcripts; telephony states in Phase 6 |
-| M09 | Conversation engine (STT → LLM → TTS) | 3 | done (Phase 3 scope) | `xplovoice_engine`: turn-taking, barge-in, clause-streamed TTS, guards, per-stage timing; tools and RAG in Phase 5 |
+| M09 | Conversation engine (STT → LLM → TTS) | 3, 5 | done (Phase 5 scope) | `xplovoice_engine`: turn-taking, barge-in, clause-streamed TTS, guards, per-stage timing; `modules/m09_tools`: tool gateway, approvals, server-side tool loop with retrieval |
 | M10 | Voice workers and real-time media | 3 | done (Phase 3 scope) | `xplovoice_worker`: LiveKit channel, Redis-stream dispatch with lease takeover; LiveKit hosting choice open (ADR-0006) |
-| M11 | Workflows and follow-ups | 5 | planned | |
-| M12 | Knowledge base and retrieval | 5 | planned | |
-| M13 | Integrations | 5 | planned | |
-| M14 | Support tickets and notifications | 5 | planned | |
+| M11 | Workflows and follow-ups | 5 | done (Phase 5 scope) | `modules/m11_workflows`: booking calendars, holidays, appointments, leads with scoring, follow-ups |
+| M12 | Knowledge base and retrieval | 5 | done (Phase 5 scope) | `modules/m12_knowledge`: scanned uploads, text extraction, chunking, full-text retrieval; embeddings awaiting configuration |
+| M13 | Integrations | 5 | partial | `modules/m13_integrations`: event outbox, signed webhooks with retries; CRM and calendar connectors awaiting configuration |
+| M14 | Support tickets and notifications | 5 | partial | `modules/m14_support`: tickets, comments, escalation tickets, approved templates; SMS and email delivery awaiting configuration |
 | M15 | Usage metering, billing, plans | 2, 7 | partial | `modules/m15_usage`: append-only usage events in provider units, provider cost ledger, usage summary. Plans, invoices and charging in Phase 7 |
 | M16 | Analytics and reporting | 7 | planned | |
 | M17 | Platform administration and audit | 1, 7 | partial | Hash-chained audit log, tenant suspend/reactivate (`modules/m17_admin`) |
@@ -77,3 +77,19 @@ later phase), *planned*, *awaiting configuration* (code path exists but needs a 
 | LLD v1.3 §5 | Workers use only /internal/v1 with a worker credential scoped to one call | `m08_calls/internal.py` | `test_internal_api_requires_worker_key_and_matching_call_token` |
 | LLD v1.3 §4 | Calls, transcripts, agents isolated per tenant | `0003_voice_engine.py` (FORCE RLS) | `test_calls_are_isolated_between_tenants`, `test_every_tenant_table_has_forced_rls` |
 | Phase 0 §E guards | Per-call duration and silence limits | `xplovoice_engine/session.py` | `test_max_duration_guard`, `test_silence_prompts_then_ends` |
+
+## Requirement traceability (Phase 5)
+
+| Requirement source | Requirement | Implementation | Test |
+|---|---|---|---|
+| Phase 0 O6, addendum G | Retrieval reads only the tenant's granted, active knowledge | `m12_knowledge/service.py`, `0005_knowledge_tools.py` (FORCE RLS) | `test_retrieval_reads_only_the_agents_own_tenant_and_granted_active_knowledge` |
+| Addendum G | Retrieved text is data, not instructions | `m12_knowledge/service.py::reference_block` | `test_retrieved_text_is_marked_as_data_not_instructions` |
+| CR-020 | Uploads scanned before storage; typed by content | `m12_knowledge/ingest.py` | `test_documents_are_scanned_typed_by_content_chunked_and_searchable`, `test_scanner_is_required_outside_development` |
+| Phase 0 O7, addendum G | Tools run only when granted, enabled, valid and once | `m09_tools/gateway.py` | `test_tools_run_only_when_granted_enabled_valid_and_never_twice` |
+| Addendum G | Sensitive actions need a person's approval | `m09_tools/gateway.py::decide` | `test_sensitive_actions_wait_for_a_person` |
+| Addendum G | Tool failures are contained and timed out | `m09_tools/gateway.py` | `test_tool_failures_are_contained` |
+| Addendum H | Native booking, leads, follow-ups, tickets | `m11_workflows`, `m14_support` | `test_booking_by_chat_runs_tools_server_side_and_records_everything`, `test_availability_respects_hours_notice_holidays_and_bookings`, `test_leads_and_follow_ups_from_a_chat`, `test_tickets_from_tools_and_from_escalation` |
+| Addendum (no invented vendors) | Messages never reported as sent without a provider | `m14_support/service.py` | `test_only_approved_messages_are_sent_and_never_claimed_delivered` |
+| CR-021 | Signed, retried, isolated webhooks; SSRF guard | `m13_integrations/dispatch.py` | `test_webhook_urls_must_be_public_https`, `test_events_are_signed_delivered_retried_and_isolated`, `test_dead_after_max_attempts` |
+| MP §6 | Same tools in voice calls through the worker API | `m08_calls/internal.py`, `xplovoice_engine/backend.py` | `test_tools_during_a_voice_call_go_through_the_worker_api` |
+
