@@ -2,6 +2,7 @@
 "use client";
 import { useActionState } from "react";
 import { testChatAction, testSpeechAction, testTranscribeAction, type TestState } from "@/app/app/ai/actions";
+import { fmtQty } from "@/lib/utils";
 import { Button, Card, FormError, Input, Label, Select } from "@/components/ui";
 
 const LANGS = [["", "Any"], ["en-IN", "English (India)"], ["hi-IN", "Hindi"], ["hi-Latn-IN", "Hinglish"], ["en-US", "English (US)"]];
@@ -24,7 +25,7 @@ function Result({ s }: { s: TestState }) {
       )}
       {r && (
         <div className="space-y-1 text-xs text-slate-600">
-          {s?.result && <p>Served by <b>{r.provider} · {r.model}</b> ({r.account === "customer" ? "your key" : "XploVoice account"}). Metered: {Object.entries(r.units).map(([u, q]) => `${q} ${u.replace("_", " ")}`).join(", ")}</p>}
+          {s?.result && <p>Served by <b>{r.provider} · {r.model}</b> ({r.account === "customer" ? "your key" : "XploVoice account"}). Metered: {Object.entries(r.units).map(([u, q]) => fmtQty(q, u)).join(", ")}</p>}
           {r.attempts?.map((a, i) => <p key={i}>Attempt {i + 1}: {a.provider} · {a.model}: {a.outcome}{a.error ? ` (${a.error})` : ""}{a.latency_ms != null ? ` in ${a.latency_ms} ms` : ""}</p>)}
           {r.skipped?.map((k, i) => <p key={i}>Skipped {k.provider} · {k.model}: {k.reason}</p>)}
         </div>

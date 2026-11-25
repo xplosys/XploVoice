@@ -1,15 +1,12 @@
 // XploVoice | Copyright (c) 2026 Xplosys. All rights reserved. | Confidential - Proprietary to Xplosys
 import { redirect } from "next/navigation";
+import { fmtQty } from "@/lib/utils";
 import { api, type UsageEvent, type UsageRow } from "@/lib/api";
 import { can, getMe } from "@/lib/me";
 import { Badge, Card } from "@/components/ui";
 
 export const metadata = { title: "Usage · XploVoice" };
 
-const fmtQty = (q: string, unit: string) => {
-  const n = Number(q);
-  return unit === "audio_second" ? `${n.toFixed(1)} s` : `${n.toLocaleString()} ${unit.replace("_", " ")}s`;
-};
 const fmtCost = (c: string | null, cur: string | null) => (c && cur ? `${cur} ${Number(c).toFixed(6)}` : "—");
 
 export default async function UsagePage() {
