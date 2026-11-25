@@ -67,6 +67,12 @@ services:
       XV_REDIS_URL: redis://redis:6379/0
       XV_INTERNAL_API_URL: http://api:8000
       XV_WORKER_KEY: dev-only-worker-key
+    # The API image's health check probes :8000/healthz, which the worker does not serve. Probe the worker's
+    # own metrics endpoint instead (127.0.0.1:9100, shared network namespace with livekit).
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:9100/metrics')"]
+      interval: 15s
+      timeout: 3s
     depends_on:
       api: { condition: service_started }
       livekit: { condition: service_started }
