@@ -31,6 +31,7 @@ alter table agent_versions add column note text check (length(note) <= 200);
 -- Backfill as the schema owner: FORCE RLS would otherwise hide every row from this session.
 alter table agents no force row level security;
 alter table agent_versions no force row level security;
+alter table calls no force row level security;
 update agents a set status = case
     when a.status = 'archived' then 'archived'
     when exists (select 1 from calls c where c.agent_id = a.id) then 'testing'
@@ -38,6 +39,7 @@ update agents a set status = case
 update agent_versions set content_hash = encode(sha256(convert_to(config::text, 'UTF8')), 'hex');
 alter table agents force row level security;
 alter table agent_versions force row level security;
+alter table calls force row level security;
 
 alter table agents alter column status set default 'draft';
 alter table agents add constraint agents_status_check

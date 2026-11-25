@@ -56,7 +56,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                 <li key={c.key} className="flex items-start gap-2"><span className="shrink-0"><Badge tone={LEVEL[c.level]}>{c.level}</Badge></span><span>{c.message}</span></li>
               ))}
             </ul>
-            <LifecyclePanel agent={agent} readiness={readiness} canPublish={can(me, "agents:publish")}
+            <LifecyclePanel key={`${agent.status}-${agent.published_version_id}-${agent.version_id}`} agent={agent} readiness={readiness} canPublish={can(me, "agents:publish")}
               canManage={can(me, "agents:manage")} canSkipTest={can(me, "tenant:manage")} />
           </Card>
           <Card>
@@ -72,7 +72,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                   </div>
                   <p className="text-xs text-slate-500">{new Date(v.created_at).toLocaleString()}{v.created_by ? ` · ${v.created_by}` : ""} · {v.test_calls} test call{v.test_calls === 1 ? "" : "s"}</p>
                   {v.note && <p className="text-xs text-slate-600">{v.note}</p>}
-                  {can(me, "agents:publish") && <div className="mt-1"><VersionAction agent={agent} v={v} /></div>}
+                  {can(me, "agents:publish") && <div className="mt-1"><VersionAction key={`${v.id}-${agent.published_version_id}`} agent={agent} v={v} /></div>}
                 </li>
               ))}
             </ul>
