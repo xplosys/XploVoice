@@ -27,6 +27,7 @@ dependencies = [
   "numpy>=2.3",
   "pypdf>=6.1,<7",
   "python-docx>=1.2",
+  "tzdata>=2025.2",  # time zones on every OS (Windows has no system database)
 ]
 
 [dependency-groups]
@@ -42,7 +43,7 @@ ignore = ["S101", "B008"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S105", "S106"]
-"migrations/versions/*" = ["E501"]  # SQL seed rows read better unwrapped
+"migrations/versions/*" = ["E501", "S608"]  # SQL seed rows read better unwrapped; DDL built from constants
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

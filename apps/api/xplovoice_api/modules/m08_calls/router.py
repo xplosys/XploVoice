@@ -18,6 +18,7 @@ from ...core.errors import ApiError, conflict, not_found
 from ...core.permissions import Perm
 from ..m03_ai import gateway
 from ..m03_ai.adapters.base import ChatMessage
+from ..m04_telephony.models import CallProviderEvent, CallStateTransition
 from ..m05_agents.models import Agent, AgentVersion
 from ..m05_agents.router import get_agent, get_version
 from ..m05_agents.runtime import engine_config
@@ -30,12 +31,14 @@ from .models import Call, CallEvent, TranscriptSegment
 from .schemas import (
     CallDetailOut,
     CallOut,
+    CarrierEventOut,
     ChatIn,
     ChatReplyOut,
     ChatStartIn,
     ChatStartOut,
     EventOut,
     SegmentOut,
+    TransitionOut,
     VoiceSessionIn,
     VoiceSessionOut,
 )
@@ -68,6 +71,11 @@ def _call_out(c: Call, a: Agent, v: AgentVersion) -> dict:
         recoveries=c.recoveries,
         agent_version_id=v.id,
         providers_used=c.providers_used or {},
+        state=c.state,
+        answered_at=c.answered_at,
+        from_number=c.from_number,
+        to_number=c.to_number,
+        campaign_id=c.campaign_id,
     )
 
 
@@ -176,6 +184,18 @@ def read_call(call_id: UUID, ctx: Ctx = Depends(require(Perm.CALLS_READ))) -> Ca
             for s in segs
         ],
         events=[EventOut(type=e.type, data=e.data, occurred_at=e.occurred_at) for e in evs],
+        transitions=[
+            TransitionOut.model_validate(x, from_attributes=True)
+            for x in ctx.session.scalars(
+                select(CallStateTransition).where(CallStateTransition.call_id == c.id).order_by(CallStateTransition.id)
+            )
+        ],
+        carrier_events=[
+            CarrierEventOut.model_validate(x, from_attributes=True)
+            for x in ctx.session.scalars(
+                select(CallProviderEvent).where(CallProviderEvent.call_id == c.id).order_by(CallProviderEvent.id)
+            )
+        ],
     )
 
 

@@ -64,6 +64,15 @@ class Settings(BaseSettings):
     webhook_dispatcher: bool = True
     webhook_timeout_seconds: float = 10.0
 
+    # Phase 6 telephony. `telephony_enabled` is the platform-wide emergency stop for phone calls (each
+    # organisation also has its own). The campaign dialer and inbound queue run inside each API process; tests
+    # drive them directly. The simulated carrier exists in development and test only.
+    telephony_enabled: bool = True
+    campaign_dialer: bool = True
+    simulated_carrier_secret: str = Field(default="dev-only-simulated-carrier-secret", min_length=16)
+    carrier_webhook_tolerance_seconds: int = 300
+    ring_timeout_seconds: int = 30
+
     @property
     def is_production_like(self) -> bool:
         return self.environment in ("staging", "production")

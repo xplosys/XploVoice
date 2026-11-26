@@ -20,13 +20,20 @@ class LiveKitChannel:
         self.source = rtc.AudioSource(RATE, 1, queue_size_ms=100)  # small queue: barge-in cuts audio quickly
         self.caller_track: asyncio.Future[rtc.Track] = asyncio.get_running_loop().create_future()
         self.left = asyncio.Event()
+        self.dtmf: asyncio.Queue[str] = asyncio.Queue(maxsize=64)  # keypad tones from a phone caller
         room.on("track_subscribed", self._on_track)
         room.on("participant_disconnected", lambda p: self.left.set() if not p.identity.startswith("agent") else None)
         room.on("disconnected", lambda *_: self.left.set())
+        room.on("sip_dtmf_received", self._on_dtmf)
 
     def _on_track(self, track: rtc.Track, _pub: rtc.RemoteTrackPublication, p: rtc.RemoteParticipant) -> None:
         if track.kind == rtc.TrackKind.KIND_AUDIO and not self.caller_track.done():
             self.caller_track.set_result(track)
+
+    def _on_dtmf(self, ev: rtc.SipDTMF) -> None:
+        if ev.digit and ev.digit in "0123456789*#":
+            with contextlib.suppress(asyncio.QueueFull):
+                self.dtmf.put_nowait(ev.digit)
 
     @classmethod
     async def join(cls, url: str, token: str) -> "LiveKitChannel":

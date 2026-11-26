@@ -93,6 +93,15 @@ class HttpBackend:
     async def record(self, events: list[dict] | None = None, segments: list[dict] | None = None) -> None:
         await self._post("/record", {"events": events or [], "segments": segments or []})
 
+    async def transfer(self, target: int) -> dict:
+        return await self._post("/transfer", {"target": target})
+
+    async def opt_out(self, said: str) -> None:
+        await self._post("/opt-out", {"said": said})
+
+    async def consent(self, purpose: str, status: str, said: str) -> None:
+        await self._post("/consent", {"purpose": purpose, "status": status, "said": said})
+
     async def stt(self, wav: bytes, language: str | None, request_id: str) -> AiResult:
         b = await self._post(
             "/stt",

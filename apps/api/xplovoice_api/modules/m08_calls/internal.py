@@ -40,9 +40,12 @@ from .models import Call, CallEvent, TranscriptSegment
 from .schemas import (
     BootstrapIn,
     BootstrapOut,
+    ConsentEventIn,
     HistoryItem,
+    OptOutIn,
     RecordIn,
     StateIn,
+    TransferIn,
     WorkerAiOut,
     WorkerLlmIn,
     WorkerSttIn,
@@ -149,6 +152,7 @@ def bootstrap(call_id: UUID, data: BootstrapIn, w: Worker = Depends(worker_auth)
         if (call.options or {}).get("simulate_after_hours") and not cfg.business_hours.enabled:
             open_now = True  # nothing to simulate: the agent has no business hours
         config = engine_config(cfg, name, open_now=open_now, max_seconds_cap=settings.max_call_seconds)
+        config["telephony"] = telephony_config(call, cfg)
         elapsed = (datetime.now(UTC) - call.connected_at).total_seconds() if call.connected_at else 0.0
         return BootstrapOut(
             call_id=call.id,
@@ -379,3 +383,162 @@ async def llm(call_id: UUID, data: WorkerLlmIn, w: Worker = Depends(worker_auth)
             yield _sse({"done": True, "provider": outcome.provider, "model": outcome.model, "units": outcome.units})
 
     return StreamingResponse(events(), media_type="text/event-stream", headers={"Cache-Control": "no-store"})
+
+
+# ------------------------------------------------------------------ telephony (Phase 6)
+OPT_OUT_PHRASES = (
+    "stop calling",
+    "don't call me",
+    "do not call",
+    "dont call me",
+    "remove my number",
+    "take me off your list",
+    "unsubscribe",
+    "never call",
+    "call mat karo",
+    "phone mat karo",
+)
+
+
+def other_party(call: Call) -> str | None:
+    return call.to_number if call.direction == "outbound" else call.from_number
+
+
+def telephony_config(call: Call, cfg: AgentConfig) -> dict:
+    """What the engine needs on a phone call. Transfer targets are referred to by position only: the numbers stay
+    on the server, so a worker can never transfer a caller to a number the agent doesn't list."""
+    phone = call.channel == "sip"
+    opts = call.options or {}
+    return {
+        "phone": phone,
+        "direction": call.direction,
+        "can_transfer": phone and cfg.transfer.enabled and bool(cfg.transfer.targets),
+        "transfer_targets": [t.label for t in cfg.transfer.targets] if phone else [],
+        "opt_out_phrases": list(OPT_OUT_PHRASES) if phone and other_party(call) else [],
+        "fallback_message": opts.get("fallback_message"),
+        "recording": {
+            "policy": cfg.recording.policy if phone else "off",
+            "consent_message": cfg.recording.consent_message,
+        },
+        "keypad": phone,
+    }
+
+
+def _phone_call(s, w: Worker) -> Call:  # type: ignore[no-untyped-def]
+    call = _load(s, w)
+    if call.channel != "sip":
+        raise bad_request("not_a_phone_call", "Only phone calls can do this")
+    if call.state in lifecycle.TERMINAL_STATES:
+        raise conflict("call_ended", "This call has already ended")
+    return call
+
+
+@router.post("/calls/{call_id}/transfer")
+async def transfer(call_id: UUID, data: TransferIn, w: Worker = Depends(worker_auth)) -> dict:
+    """Hands the caller to one of the agent's transfer numbers (addendum D). The destination is checked by the
+    same toll-fraud rules as an outbound call, and the decision is stored. Success ends the call for the agent
+    (reason transferred); failure returns it to the conversation so the agent can take a message instead."""
+    from ..m04_telephony import service as tel
+    from ..m04_telephony.adapters import adapter
+    from ..m04_telephony.adapters.base import CarrierError
+    from ..m07_campaigns import policy
+
+    with session_scope(tenant_id=w.tenant_id) as s:
+        call = _phone_call(s, w)
+        cfg = _agent_cfg(s, call)
+        if not cfg.transfer.enabled or data.target >= len(cfg.transfer.targets):
+            raise bad_request("no_transfer_target", "This agent has no such transfer number")
+        to = cfg.transfer.targets[data.target].number
+        tenant = s.get(Tenant, w.tenant_id)
+        assert tenant is not None
+        pol = tel.policy_for(s, w.tenant_id, tenant.country_code)
+        checks = policy.destination_checks(pol, to)
+        failed = next((c for c in checks if not c.ok), None)
+        d = policy.Decision("block", failed.check, checks) if failed else policy.Decision("allow", None, checks)
+        policy.record(s, d, tenant_id=w.tenant_id, phone=to, purpose="transfer", call_id=call.id)
+        if not d.allowed:
+            return {"ok": False, "reason": d.reason}
+        if not lifecycle.enter(call, "transferring", source="engine", reason="transfer"):
+            return {"ok": False, "reason": "invalid_state"}
+        provider = tel.trunk_provider(s, call)
+        identity = tel.ref_for(s, call, "participant")
+        room = call.room_name
+    try:
+        if not identity:
+            raise CarrierError("The caller isn't connected through a phone line.")
+        await adapter(provider).transfer(room=room, participant_identity=identity, to_e164=to)
+        ok, reason = True, None
+    except CarrierError as e:
+        ok, reason = False, str(e)[:200]
+    with session_scope(tenant_id=w.tenant_id) as s:
+        call = s.scalar(select(Call).where(Call.id == w.call_id).with_for_update())
+        assert call is not None
+        if ok:
+            if lifecycle.enter(call, "completed", source="carrier", reason="transferred"):
+                tel.finalize(s, call)
+        else:
+            lifecycle.enter(call, "in_progress", source="carrier", reason="transfer_failed")
+        s.add(
+            CallEvent(
+                tenant_id=w.tenant_id,
+                call_id=call.id,
+                event_key=f"transfer:{datetime.now(UTC).timestamp()}",
+                type="transfer.completed" if ok else "transfer.failed",
+                data={"target": cfg.transfer.targets[data.target].label, "reason": reason},
+            )
+        )
+    return {"ok": ok, "reason": reason}
+
+
+@router.post("/calls/{call_id}/opt-out")
+def opt_out(call_id: UUID, data: OptOutIn, w: Worker = Depends(worker_auth)) -> dict:
+    """The person said not to call them again: do-not-call list, consent revoked, open campaign calls stopped."""
+    from ..m22_consent.service import opt_out as do_opt_out
+
+    with session_scope(tenant_id=w.tenant_id) as s:
+        call = _load(s, w)
+        phone = other_party(call) if call.channel == "sip" else None
+        if not phone:
+            raise bad_request("not_a_phone_call", "Only phone calls can do this")
+        do_opt_out(s, tenant_id=w.tenant_id, phone=phone, call_id=call.id, said=data.said)
+        s.execute(
+            insert(CallEvent)
+            .values(tenant_id=w.tenant_id, call_id=call.id, event_key="opt_out", type="consent.opted_out", data={})
+            .on_conflict_do_nothing()
+        )
+    return {"ok": True}
+
+
+@router.post("/calls/{call_id}/consent")
+def consent_event(call_id: UUID, data: ConsentEventIn, w: Worker = Depends(worker_auth)) -> dict:
+    """Consent given or refused on the call itself (for example, to recording). Stored with the call."""
+    from ..m22_consent.service import record_consent
+
+    with session_scope(tenant_id=w.tenant_id) as s:
+        call = _load(s, w)
+        phone = other_party(call) if call.channel == "sip" else None
+        if not phone:
+            return {"ok": False}  # browser test calls have no phone number to attach consent to
+        record_consent(
+            s,
+            tenant_id=w.tenant_id,
+            phone=phone,
+            purpose=data.purpose,
+            status=data.status,
+            basis="on_call",
+            source="call",
+            evidence=data.said,
+            call_id=call.id,
+        )
+        s.execute(
+            insert(CallEvent)
+            .values(
+                tenant_id=w.tenant_id,
+                call_id=call.id,
+                event_key=f"consent:{data.purpose}",
+                type="consent.recorded",
+                data={"purpose": data.purpose, "status": data.status},
+            )
+            .on_conflict_do_nothing()
+        )
+    return {"ok": True}

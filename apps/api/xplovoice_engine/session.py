@@ -43,7 +43,11 @@ MESSAGES = {
     "silence_bye": "I haven't heard anything for a while, so I'll end the call now. Goodbye.",
     "time_limit": "We've reached the time limit for this call. Thank you, goodbye.",
     "resumed": "Sorry about that, I'm back. Please go on.",
+    "opted_out": "Understood. We won't call you again. Goodbye.",
+    "transfer_failed": "Sorry, I couldn't connect you. I'll pass your message to the team so they can call you back.",
 }
+DECLINE_WORDS = frozenset({"no", "nope", "don't", "dont", "not", "nahi", "nahin", "mat"})
+KEYPAD_PAUSE_S = 2.0
 
 
 @dataclass
@@ -91,6 +95,12 @@ class CallSession:
         self.msg = MESSAGES | {k: v for k, v in (self.cfg.get("messages") or {}).items() if v}
         self.escalation: dict[str, Any] = self.cfg.get("escalation") or {"enabled": False}
         self.unclear_turns = 0
+        # Phase 6: phone calls (transfer, opt-out, recording consent, keypad)
+        self.tel: dict[str, Any] = self.cfg.get("telephony") or {}
+        self.opt_out_phrases: list[str] = list(self.tel.get("opt_out_phrases") or [])
+        self.recording: dict[str, Any] = self.tel.get("recording") or {"policy": "off"}
+        self.consent_pending = False
+        self.keys = ""
         self.rid = f"{worker_id[:12]}-{uuid.uuid4().hex[:8]}"
         self.seq = boot.next_seq
         self.turn_no = 0
@@ -132,16 +142,27 @@ class CallSession:
         remaining = max(1.0, float(self.cfg.get("max_call_seconds", 300)) - self.boot.elapsed_seconds)
         limiter = asyncio.create_task(self._deadline(remaining))
         opening = self.msg["resumed"] if self.boot.resumed else self.cfg.get("greeting")
-        if self.cfg.get("closed") and not self.boot.resumed:
+        keypad = asyncio.create_task(self._keypad()) if getattr(self.channel, "dtmf", None) is not None else None
+        if not self.boot.resumed and self.recording.get("policy") in ("record", "ask_consent"):
+            notice = self.recording.get("consent_message") or ""
+            opening = f"{notice} {opening or ''}".strip()
+            self.consent_pending = self.recording.get("policy") == "ask_consent"
+            self._event("recording.notice", {"policy": self.recording.get("policy")})
+        if self.tel.get("fallback_message") and not self.boot.resumed:
+            self._event("fallback", {})
+            self._start(self._final_words(self.tel["fallback_message"], "unavailable"))
+        elif self.cfg.get("closed") and not self.boot.resumed:
             self._event("after_hours", {})
             self._start(self._final_words(self.cfg["closed"], "after_hours"))
+        elif opening and self.recording.get("policy") in ("record", "ask_consent") and not self.boot.resumed:
+            self._start(self._uninterrupted(opening))  # the caller must hear the whole recording notice
         elif opening:
             self._start(self._respond(None, preset=opening, kind="greeting" if not self.boot.resumed else "system"))
         done_wait = asyncio.create_task(self.ended.wait())
         await asyncio.wait({listener, done_wait}, return_when=asyncio.FIRST_COMPLETED)
         if listener.done() and not self.ended.is_set():
             self.end_reason = "caller_hangup"
-        for t in (listener, limiter, done_wait, self.respond_task):
+        for t in (listener, limiter, done_wait, keypad, self.respond_task):
             if t and not t.done():
                 t.cancel()
                 with contextlib.suppress(asyncio.CancelledError, Exception):
@@ -242,6 +263,7 @@ class CallSession:
         kind: str = "reply",
         speech_end: float | None = None,
         endpoint_ms: int | None = None,
+        typed: str | None = None,
     ) -> None:
         self.turn_no += 1
         m = TurnMetrics(turn=self.turn_no, kind=kind, endpoint_ms=endpoint_ms)
@@ -250,8 +272,19 @@ class CallSession:
         progress = {"clause": "", "played": 0, "total": 0}
         self._set_state("thinking")
         try:
-            if utt is not None:
-                text = await self._transcribe(utt, m)
+            if utt is not None or typed is not None:
+                if typed is not None:
+                    text = typed
+                    self._segment("caller", f"[keypad] {typed}")
+                    self.messages.append(
+                        {"role": "user", "content": f"(The caller pressed keys on the keypad: {typed})"}
+                    )
+                else:
+                    text = await self._transcribe(utt, m)  # type: ignore[arg-type]
+                if text and self._opted_out(text):
+                    return
+                if text and self.consent_pending:
+                    self._consent_answer(text)
                 trigger = self._escalation_trigger(text)
                 if trigger:
                     self._escalate(trigger)
@@ -306,14 +339,105 @@ class CallSession:
         return next((p for p in esc.get("phrases", []) if p in said), None)
 
     def _escalate(self, trigger: str) -> None:
-        """Hands the call over. Transferring to a phone number is telephony's job (Phase 6); on a browser call
-        the agent says the hand-over message and ends the call with a reason that says what was asked for."""
+        """Hands the call over. On a phone call with transfer numbers, the caller is transferred (SIP REFER) to the
+        first one; on a browser call the agent says the hand-over message and ends the call with a reason that says
+        what was asked for."""
         action = self.escalation.get("action", "take_message")
         EVENTS.labels("escalation").inc()
         self._event("escalation.requested", {"trigger": trigger, "action": action, "turn": self.turn_no})
-        reason = "transfer_requested" if action == "transfer" else "escalated"
         message = self.escalation.get("message") or "Thank you for calling."
+        if action == "transfer" and self.tel.get("can_transfer"):
+            asyncio.get_running_loop().create_task(self._transfer(message))
+            return
+        reason = "transfer_requested" if action == "transfer" else "escalated"
         asyncio.get_running_loop().create_task(self._final_words(message, reason))
+
+    async def _transfer(self, announce: str) -> None:
+        if self.closing:
+            return
+        self.closing = True  # nothing else may speak or end the call while the hand-over runs
+        if self.responding and self.respond_task is not asyncio.current_task():
+            self.respond_task.cancel()  # type: ignore[union-attr]
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await self.respond_task  # type: ignore[misc]
+        self.interruptible = False
+        with contextlib.suppress(NoProviderError, CallEndedError, Exception):
+            await self._respond(None, preset=announce, kind="system")
+        try:
+            r = await self.backend.transfer(0)
+            ok = bool(r.get("ok"))
+        except CallEndedError:
+            ok = True  # the carrier already ended our leg: the caller is with the other number
+        except Exception:  # noqa: BLE001 - the caller stays with the agent
+            ok = False
+        if ok:
+            EVENTS.labels("transfer").inc()
+            self.end("transferred")
+            return
+        self._event("escalation.requested", {"trigger": "transfer_failed", "action": "take_message"})
+        self.closing = False
+        self.interruptible = bool(self.cfg.get("interruptible", True))
+        with contextlib.suppress(NoProviderError, CallEndedError, Exception):
+            await self._respond(None, preset=self.msg["transfer_failed"], kind="system")
+
+    # ------------------------------------------------------------------ opt-out and consent (phone calls)
+    def _opted_out(self, text: str) -> bool:
+        said = " ".join(text.lower().replace("’", "'").split())
+        if not any(p in said for p in self.opt_out_phrases):
+            return False
+        EVENTS.labels("opt_out").inc()
+        self._event("opt_out.requested", {"turn": self.turn_no})
+        loop = asyncio.get_running_loop()
+
+        async def go() -> None:
+            with contextlib.suppress(Exception):
+                await self.backend.opt_out(text[:200])
+            await self._final_words(self.msg["opted_out"], "opted_out")
+
+        loop.create_task(go())
+        return True
+
+    def _consent_answer(self, text: str) -> None:
+        """The first thing the caller says after the recording notice: a refusal stops recording consent."""
+        self.consent_pending = False
+        words = set(" ".join(text.lower().replace("’", "'").split()).replace(",", " ").replace(".", " ").split())
+        status = "declined" if words & DECLINE_WORDS else "granted"
+        self._event("recording.consent", {"status": status})
+        asyncio.get_running_loop().create_task(self._safe(self.backend.consent("recording", status, text[:200])))
+
+    async def _uninterrupted(self, text: str) -> None:
+        before, self.interruptible = self.interruptible, False
+        try:
+            await self._respond(None, preset=text, kind="greeting")
+        finally:
+            self.interruptible = before
+
+    async def _safe(self, coro: Any) -> None:
+        with contextlib.suppress(Exception):
+            await coro
+
+    # ------------------------------------------------------------------ keypad (DTMF)
+    async def _keypad(self) -> None:
+        """Keypad tones: 0 asks for a person; other keys are collected and sent as one typed reply after # or a
+        short pause, so "press 1 for..." flows and account numbers both work."""
+        q: asyncio.Queue[str] = self.channel.dtmf  # type: ignore[attr-defined]
+        while not self.ended.is_set():
+            try:
+                digit = await asyncio.wait_for(q.get(), KEYPAD_PAUSE_S / self.speed if self.keys else None)
+            except TimeoutError:
+                digit = "#"
+            self._event("dtmf", {"digit": digit})
+            if digit == "0" and not self.keys and self.escalation.get("enabled"):
+                self._escalate("keypad_0")
+                continue
+            if digit != "#":
+                self.keys = (self.keys + digit)[-20:]
+                continue
+            keys, self.keys = self.keys, ""
+            if keys and not self.closing:
+                if self.responding:
+                    await self._barge_in()
+                self._start(self._respond(None, typed=" ".join(keys)))
 
     async def _transcribe(self, utt: Utterance, m: TurnMetrics) -> str:
         t = self.clock()

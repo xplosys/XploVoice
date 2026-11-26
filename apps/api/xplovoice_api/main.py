@@ -18,7 +18,11 @@ from .modules.m01_identity.router import router as identity_router
 from .modules.m02_tenant.router import router as tenant_router
 from .modules.m03_ai.admin import router as ai_admin_router
 from .modules.m03_ai.router import router as ai_router
+from .modules.m04_telephony.router import router as telephony_router
+from .modules.m04_telephony.webhooks import router as carrier_webhooks_router
 from .modules.m05_agents.router import router as agents_router
+from .modules.m07_campaigns import dialer
+from .modules.m07_campaigns.router import router as campaigns_router
 from .modules.m08_calls.internal import router as worker_router
 from .modules.m08_calls.router import router as calls_router
 from .modules.m09_tools.router import router as tools_router
@@ -30,6 +34,7 @@ from .modules.m14_support.router import router as support_router
 from .modules.m15_usage.router import router as usage_router
 from .modules.m17_admin.router import router as admin_router
 from .modules.m18_ops.router import router as ops_router
+from .modules.m22_consent.router import router as consent_router
 
 REQUESTS = Counter("xv_http_requests_total", "HTTP requests", ["method", "route", "status"])
 LATENCY = Histogram("xv_http_request_seconds", "HTTP latency", ["method", "route"])
@@ -38,9 +43,14 @@ _CID = re.compile(r"^[A-Za-z0-9\-]{8,64}$")
 
 @contextlib.asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    task = asyncio.create_task(webhooks.loop()) if get_settings().webhook_dispatcher else None
+    settings = get_settings()
+    tasks = []
+    if settings.webhook_dispatcher:
+        tasks.append(asyncio.create_task(webhooks.loop()))
+    if settings.campaign_dialer:  # outbound campaigns and the inbound queue (safe in several processes)
+        tasks.append(asyncio.create_task(dialer.loop()))
     yield
-    if task:
+    for task in tasks:
         task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await task
@@ -102,6 +112,10 @@ def create_app() -> FastAPI:
         integrations_router,
         admin_router,
         ai_admin_router,
+        telephony_router,
+        carrier_webhooks_router,
+        campaigns_router,
+        consent_router,
     ):
         app.include_router(r)
     FastAPIInstrumentor.instrument_app(app, excluded_urls="healthz,readyz,metrics")

@@ -32,6 +32,17 @@ class Call(Base):
     recoveries: Mapped[int] = mapped_column(Integer, server_default="0")
     providers_used: Mapped[dict] = mapped_column(JSONB, server_default="{}")  # kind -> provider, model, version
     options: Mapped[dict] = mapped_column(JSONB, server_default="{}")  # test-call options, e.g. simulate hours
+    # Phase 6: the 15-state lifecycle (addendum E) and the telephone legs of a call
+    state: Mapped[str] = mapped_column(String, server_default="initiated")
+    state_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    from_number: Mapped[str | None] = mapped_column(String)
+    to_number: Mapped[str | None] = mapped_column(String)
+    trunk_id: Mapped[UUID | None]
+    phone_number_id: Mapped[UUID | None]
+    campaign_id: Mapped[UUID | None]
+    queue_id: Mapped[UUID | None]
+    queued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class CallEvent(Base):

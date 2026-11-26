@@ -32,6 +32,14 @@ class Perm(StrEnum):
     TOOLS_MANAGE = "tools:manage"  # tenant tool policies: enabled, needs approval
     TOOLS_APPROVE = "tools:approve"  # approve or deny a sensitive action an agent asked for
     INTEGRATIONS_MANAGE = "integrations:manage"
+    # Phase 6
+    TELEPHONY_READ = "telephony:read"  # numbers, trunks, routes, queues, the destination policy
+    TELEPHONY_MANAGE = "telephony:manage"  # includes pausing all phone calls (the organisation kill switch)
+    CAMPAIGNS_READ = "campaigns:read"
+    CAMPAIGNS_MANAGE = "campaigns:manage"  # create, edit, import contacts, start and pause approved campaigns
+    CAMPAIGNS_APPROVE = "campaigns:approve"  # a second person approves a campaign before it can dial
+    CONSENT_READ = "consent:read"  # consent records and the do-not-call list
+    CONSENT_MANAGE = "consent:manage"  # record consent, add to the do-not-call list (removal needs approve)
 
 
 ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
@@ -51,6 +59,10 @@ ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
             Perm.KNOWLEDGE_MANAGE,
             Perm.WORKFLOWS_READ,
             Perm.SUPPORT_READ,
+            Perm.TELEPHONY_READ,
+            Perm.CAMPAIGNS_READ,
+            Perm.CAMPAIGNS_MANAGE,
+            Perm.CONSENT_READ,
         }
     ),
     # Front-office staff: work the appointments, leads, follow-ups and tickets the agents create.
@@ -67,6 +79,10 @@ ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
             Perm.SUPPORT_READ,
             Perm.SUPPORT_MANAGE,
             Perm.TOOLS_APPROVE,
+            Perm.TELEPHONY_READ,
+            Perm.CAMPAIGNS_READ,
+            Perm.CONSENT_READ,
+            Perm.CONSENT_MANAGE,
         }
     ),
     "viewer": frozenset(
@@ -78,6 +94,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
             Perm.KNOWLEDGE_READ,
             Perm.WORKFLOWS_READ,
             Perm.SUPPORT_READ,
+            Perm.TELEPHONY_READ,
+            Perm.CAMPAIGNS_READ,
         }
     ),
 }

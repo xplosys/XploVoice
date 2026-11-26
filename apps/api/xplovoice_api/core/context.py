@@ -43,6 +43,12 @@ class Ctx:
     mfa: bool
     meta: RequestMeta
 
+    def commit(self) -> None:
+        """Commits mid-request (for example before a carrier request) and keeps the RLS context, which is per
+        transaction."""
+        self.session.commit()
+        set_context(self.session, tenant_id=self.tenant.id, user_id=self.user.id)
+
     def require(self, perm: Perm) -> None:
         if not has(self.membership.role, perm):
             audit.record(

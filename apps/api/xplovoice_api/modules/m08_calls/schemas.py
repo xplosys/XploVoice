@@ -61,6 +61,12 @@ class CallOut(BaseModel):
     recoveries: int
     agent_version_id: UUID
     providers_used: dict[str, Any] = {}
+    # Phase 6: the 15-state lifecycle and the phone legs
+    state: str = "initiated"
+    answered_at: datetime | None = None
+    from_number: str | None = None
+    to_number: str | None = None
+    campaign_id: UUID | None = None
 
 
 class SegmentOut(BaseModel):
@@ -79,9 +85,28 @@ class EventOut(BaseModel):
     occurred_at: datetime
 
 
+class TransitionOut(BaseModel):
+    from_state: str
+    to_state: str
+    source: str
+    reason: str | None
+    occurred_at: datetime
+
+
+class CarrierEventOut(BaseModel):
+    provider_key: str
+    type: str
+    state: str | None
+    applied: bool
+    occurred_at: datetime
+    received_at: datetime
+
+
 class CallDetailOut(CallOut):
     transcript: list[SegmentOut]
     events: list[EventOut]
+    transitions: list[TransitionOut] = []
+    carrier_events: list[CarrierEventOut] = []
 
 
 # ------------------------------------------------------------------ worker (internal) API
@@ -114,6 +139,20 @@ class BootstrapOut(BaseModel):
 class StateIn(BaseModel):
     status: Literal["connecting", "active", "ending", "completed", "failed", "abandoned"]
     reason: str | None = Field(default=None, max_length=40)
+
+
+class TransferIn(BaseModel):
+    target: int = Field(default=0, ge=0, le=4)  # index into the agent's transfer targets; never a free number
+
+
+class OptOutIn(BaseModel):
+    said: str = Field(default="", max_length=200)
+
+
+class ConsentEventIn(BaseModel):
+    purpose: Literal["recording", "outbound_calls"] = "recording"
+    status: Literal["granted", "declined"]
+    said: str = Field(default="", max_length=200)
 
 
 class EventIn(BaseModel):
