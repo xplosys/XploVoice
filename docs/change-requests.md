@@ -20,16 +20,16 @@ approved the build to proceed on the proposal; the formal baseline document stil
 | CR | Missing specification | Modules | Priority | Status |
 |---|---|---|---|---|
 | CR-001 | Core LLD for M01–M18 | M01–M18 | Blocker | Accepted (provisional IDs); M01, M02, M17, M18 slices implemented |
-| CR-002 | Common engine + channel adapter contract, incl. browser WebRTC | M09, M10 | High | Implemented for browser (ADR-0006); SIP adapter in Phase 6 |
-| CR-003 | 15-state call lifecycle, idempotent order-tolerant events | M04, M08 | High | Partial: 8-state browser subset, order-tolerant and idempotent; telephony states in Phase 6 |
+| CR-002 | Common engine + channel adapter contract, incl. browser WebRTC | M09, M10 | High | Implemented: one LiveKit channel for browser and SIP callers (ADR-0006, ADR-0009) |
+| CR-003 | 15-state call lifecycle, idempotent order-tolerant events | M04, M08 | High | Implemented (ADR-0009): 15 states, transitions history, carrier events stored once and verified |
 | CR-004 | Latency instrumentation and benchmark workload | M10, M18 | High | Partial: per-stage timing on every call, first benchmark with mock providers; real-vendor run, Silero VAD and streaming STT pending |
-| CR-005 | Carrier adapters, capability registry, trunks, DIDs, destination policies | M04 | High | Open |
+| CR-005 | Carrier adapters, capability registry, trunks, DIDs, destination policies | M04 | High | Implemented for customer SIP trunks (LiveKit SIP) and the development carrier; managed numbers awaiting a carrier contract |
 | CR-006 | Agent version schema; 5-state lifecycle | M05 | High | Implemented (ADR-0007): MP §9 states; HLD v1.0 "configured" = readiness checks pass, "active" = published and not paused; rollback activates a previously published version; calls record agent version and provider/model versions |
 | CR-007 | Tool gateway and RAG authorization | M09, M12 | High | Open |
 | CR-008 | Native workflows: follow-ups, holiday calendars, support tickets | M11, M13, M14 | Medium | Open |
-| CR-009 | Inbound routing + queues; outbound policy engine, suppression, dial attempts | M06, M07 | High | Open |
+| CR-009 | Inbound routing + queues; outbound policy engine, suppression, dial attempts | M06, M07 | High | Implemented (ADR-0009); hold audio not played |
 | CR-010 | Worker and queue spec: heartbeats, DLQ, backpressure, regional routing | M10 | High | Partial: Redis-stream dispatch, heartbeats, lease takeover, per-worker call limit; DLQ and regional routing open |
-| CR-011 | Consent, retention, recording audit for standard tenants | M22, M24 | Medium | Open |
+| CR-011 | Consent, retention, recording audit for standard tenants | M22, M24 | Medium | Partial: consent records, do-not-call, opt-out, recording notice and consent; recording storage and retention awaiting configuration |
 | CR-012 | Platform-wide fallback chains and circuit breakers | M03, M04, M09 | High | Partial: AI gateway fallback and breaker (ADR-0005); engine plays a fixed message and ends cleanly (Phase 3); telephony in Phase 6 |
 | CR-013 | Concurrency, capacity and admission control | M10, M15 | High | Partial: per-tenant live-call limit and per-worker call limit |
 | CR-014 | Per-call trace span model and monitoring catalogue | M18, M16 | Medium | Open |
@@ -41,6 +41,6 @@ approved the build to proceed on the proposal; the formal baseline document stil
 | CR-020 | KB malware scanning, document versioning, retrieval audit | M12 | Medium | Partial: scanning before storage (ClamAV or development-only built-in check) and retrieval events per turn (`kb.retrieved`, ids only); document versioning open |
 | CR-021 | Integration framework (OAuth, sync logs, retries) | M13 | Medium | Partial: event outbox, signed webhooks, retries, delivery log; OAuth connectors awaiting configuration |
 | CR-022 | Subscriptions, PAYG, invoices, FX, cost and charge ledgers | M15 | Medium | Partial: usage events and provider cost ledger; charging in Phase 7 |
-| CR-023 | Resolve M07/M22 cycle | M07, M22 | High | Accepted (split) |
+| CR-023 | Resolve M07/M22 cycle | M07, M22 | High | Implemented: M22-core (consent, do-not-call) built before M07 |
 | CR-024 | Public marketing site pages | Web | Low | Implemented (content makes no compliance claims) |
 | CR-025 | Password change must end sessions in every tenant, not only the current one | M01 | High | Implemented: `revoke_my_sessions` definer function, test `test_password_change_revokes_sessions_in_every_org` |

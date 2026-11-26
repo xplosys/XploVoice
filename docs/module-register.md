@@ -14,11 +14,11 @@ later phase), *planned*, *awaiting configuration* (code path exists but needs a 
 | M01 | Identity, authentication, MFA, sessions | 1 | done | `apps/api/xplovoice_api/modules/m01_identity`; email verification sending is awaiting configuration |
 | M02 | Tenants, members, invitations, regional settings | 1 | done | `modules/m02_tenant`; invitation email is awaiting configuration (dev returns the link) |
 | M03 | AI provider registry and gateway | 2 | done | `modules/m03_ai`: catalog, adapters (OpenAI, Anthropic, Deepgram, ElevenLabs, Sarvam, OpenAI-compatible self-hosted, Piper, dev-only mock), tenant routing, failover, circuit breaker, encrypted customer keys, admin catalog console. Managed vendor accounts and price lists are awaiting configuration |
-| M04 | Telephony carriers, trunks, numbers | 6 | planned | Carrier onboarding to start early (X-4) |
+| M04 | Telephony carriers, trunks, numbers | 6 | done (Phase 6 scope) | `modules/m04_telephony`: adapter contract, customer SIP trunks through LiveKit SIP, development-only simulated carrier, encrypted trunk secrets, numbers unique across tenants, destination policy and kill switch, verified and deduplicated carrier webhooks, usage in billing pulses (ADR-0009). Numbers from XploVoice await a carrier contract |
 | M05 | Agent builder and versioning | 3, 4 | done (Phase 4 scope) | `modules/m05_agents`: all MP §9 fields, ten templates, immutable versions with content hashes and notes, readiness checks, lifecycle draft/testing/published/paused/archived, publish with a test-call gate, rollback, append-only publication history (ADR-0007). Knowledge base and tool grants are stored and run from Phase 5; transfer and recording run with telephony in Phase 6 |
-| M06 | Inbound routing and queues | 6 | planned | |
-| M07 | Outbound campaigns | 6 | planned | After M22-core (X-2, CR-023) |
-| M08 | Call sessions and lifecycle | 3 | done (Phase 3 scope) | `modules/m08_calls`: calls, order-tolerant lifecycle, append-only events and transcripts; telephony states in Phase 6 |
+| M06 | Inbound routing and queues | 6 | done (Phase 6 scope) | `modules/m06_inbound`: number-to-tenant routing, routes with queue and fallback, queue tick; hold audio not played |
+| M07 | Outbound campaigns | 6 | done (Phase 6 scope) | `modules/m07_campaigns`: campaigns with four-eyes approval, contact import, policy engine with stored decisions, calling windows in local time, dialer, retries |
+| M08 | Call sessions and lifecycle | 3 | done (Phase 3 scope) | `modules/m08_calls`: calls, order-tolerant lifecycle, append-only events and transcripts; 15-state lifecycle with transitions and carrier events from Phase 6 |
 | M09 | Conversation engine (STT → LLM → TTS) | 3, 5 | done (Phase 5 scope) | `xplovoice_engine`: turn-taking, barge-in, clause-streamed TTS, guards, per-stage timing; `modules/m09_tools`: tool gateway, approvals, server-side tool loop with retrieval |
 | M10 | Voice workers and real-time media | 3 | done (Phase 3 scope) | `xplovoice_worker`: LiveKit channel, Redis-stream dispatch with lease takeover; LiveKit hosting choice open (ADR-0006) |
 | M11 | Workflows and follow-ups | 5 | done (Phase 5 scope) | `modules/m11_workflows`: booking calendars, holidays, appointments, leads with scoring, follow-ups |
@@ -29,6 +29,7 @@ later phase), *planned*, *awaiting configuration* (code path exists but needs a 
 | M16 | Analytics and reporting | 7 | planned | |
 | M17 | Platform administration and audit | 1, 7 | partial | Hash-chained audit log, tenant suspend/reactivate (`modules/m17_admin`) |
 | M18 | Observability and operations | 1 | partial | Health, readiness, Prometheus metrics, OpenTelemetry hooks (`modules/m18_ops`) |
+| M22-core | Consent and do-not-call (CR-023) | 6 | done | `modules/m22_consent`: consent records, do-not-call list, opt-out on calls; recording storage awaiting configuration |
 | M19–M25 | Healthcare modules (LLD v1.3) | 8 | planned | Healthcare mode stays disabled until the activation gate evidence exists |
 
 ## Requirement traceability (Phase 1)
@@ -93,3 +94,16 @@ later phase), *planned*, *awaiting configuration* (code path exists but needs a 
 | CR-021 | Signed, retried, isolated webhooks; SSRF guard | `m13_integrations/dispatch.py` | `test_webhook_urls_must_be_public_https`, `test_events_are_signed_delivered_retried_and_isolated`, `test_dead_after_max_attempts` |
 | MP §6 | Same tools in voice calls through the worker API | `m08_calls/internal.py`, `xplovoice_engine/backend.py` | `test_tools_during_a_voice_call_go_through_the_worker_api` |
 
+
+## Requirement traceability (Phase 6)
+
+| Requirement source | Requirement | Implementation | Test |
+|---|---|---|---|
+| Addendum D | Carrier abstraction; LiveKit SIP trunks, calls and transfer | `m04_telephony/adapters/` | `test_livekit_sip_adapter_requests` |
+| Addendum E, CR-003 | 15 states; idempotent, order-tolerant, verified events | `m08_calls/lifecycle.py`, `m04_telephony/service.py::ingest`, `m04_telephony/webhooks.py` | `test_carrier_webhooks_are_verified_deduplicated_and_order_tolerant`, `test_livekit_webhook_routes_sip_callers_and_ends_calls` |
+| Addendum I inbound, CR-009 | Number-to-tenant routing, queue, fallback, kill switch | `m06_inbound/service.py` | `test_inbound_routes_queues_and_falls_back`, `test_queue_times_out_to_fallback_and_hangup`, `test_inbound_unknown_unpublished_and_paused`, `test_inbound_calls_stay_in_their_organisation` |
+| Addendum I outbound, CR-009 | Approval, consent, do-not-call, window, caps, retries | `m07_campaigns/` | `test_campaigns_need_approval_by_another_person`, `test_consent_and_do_not_call_block_before_any_carrier_request`, `test_toll_fraud_caps`, `test_calling_window_in_the_persons_local_time`, `test_window_defers_and_no_window_blocks`, `test_retry_then_exhausted_and_carrier_outcomes` |
+| Addendum I, CR-011 | Opt-out on a call; consent records; recording consent | `m22_consent/service.py`, `m08_calls/internal.py` | `test_opt_out_on_a_call_stops_every_campaign`, `test_recording_consent_on_the_call`, `test_engine_phone.py` |
+| Addendum D | Transfer with destination checks | `m08_calls/internal.py::transfer` | `test_transfer_success_failure_and_destination_rules`, `test_transfer_success_ends_the_agent_leg`, `test_failed_transfer_comes_back_and_takes_a_message` |
+| Addendum D | Billing pulses | `m04_telephony/service.py::finalize` | `test_usage_is_billed_in_carrier_pulses` |
+| Addendum D | Keypad tones (DTMF) | `xplovoice_engine/session.py`, `xplovoice_worker/livekit_channel.py` | `test_keypad_digits_become_a_typed_reply_and_zero_asks_for_a_person` |

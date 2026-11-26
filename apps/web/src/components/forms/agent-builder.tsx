@@ -218,7 +218,7 @@ export function AgentBuilder({ agent, models, canEdit, knowledge = [], calendars
               <Field label="Transfer type" id="mode"><Select id="mode" value={c.transfer.mode} onChange={(e) => sub("transfer", { mode: e.target.value as "warm" | "cold" })}>
                 <option value="cold">Cold (connect directly)</option><option value="warm">Warm (introduce the caller first)</option></Select></Field>
             </div>
-            <Later>Transfers to a phone number are carried out by telephony, which arrives in Phase 6. On a browser test call the agent says the announcement and ends the call, and the call shows that a transfer was requested.</Later>
+            <Later>On a phone call the agent says the announcement and hands the caller to the first number (a cold transfer; warm transfer is not built yet). Each number is checked against your destination policy first. If the transfer fails, the agent comes back and takes a message. On a browser test call the agent says the announcement and ends the call.</Later>
           </>)}
         </>)}
 
@@ -226,12 +226,12 @@ export function AgentBuilder({ agent, models, canEdit, knowledge = [], calendars
           <Field label="Recording policy" id="recording"><Select id="recording" value={c.recording.policy} onChange={(e) => sub("recording", { policy: e.target.value as AgentConfig["recording"]["policy"] })}>
             <option value="off">Don&apos;t record</option><option value="ask_consent">Ask the caller first</option><option value="record">Record (with notice)</option></Select></Field>
           {c.recording.policy !== "off" && <Field label="Consent or notice message" id="consent"><Area id="consent" max={300} value={c.recording.consent_message} onChange={(v) => sub("recording", { consent_message: v })} /></Field>}
-          <Later>Awaiting Phase 6: recording, consent capture and storage arrive with telephony. The policy is saved with the version; calls are not recorded yet.</Later>
+          <Later>On phone calls the agent says this message first, and the caller can&apos;t talk over it. With &quot;Ask the caller first&quot;, their answer is stored as a consent record. Storing the audio itself is awaiting configuration: calls are not recorded yet.</Later>
           <hr className="border-slate-200" />
           <Field label="If the AI providers fail, the agent says" id="pf"><Area id="pf" max={300} value={c.fallback.provider_failure_message} onChange={(v) => sub("fallback", { provider_failure_message: v })} /></Field>
           <Field label="When the agent didn't catch what was said" id="unclear"><Input id="unclear" maxLength={300} value={c.fallback.unclear_message} onChange={(e) => sub("fallback", { unclear_message: e.target.value })} /></Field>
           <Field label="Then" id="on_failure"><Select id="on_failure" value={c.fallback.on_failure} onChange={(e) => sub("fallback", { on_failure: e.target.value as "end_call" | "transfer" })}>
-            <option value="end_call">End the call</option><option value="transfer">Transfer the call (Phase 6)</option></Select></Field>
+            <option value="end_call">End the call</option><option value="transfer">Transfer the call (not built yet: the call ends)</option></Select></Field>
         </>)}
 
         {section === "knowledge" && (<>

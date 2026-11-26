@@ -461,7 +461,7 @@ def test_consent_and_do_not_call_block_before_any_carrier_request(client, owner_
     r = client.post(
         f"/v1/campaigns/{c['id']}/contacts",
         headers=auth(t),
-        json={"contacts": [{"phone": no_consent}, {"phone": "1234"}]},
+        json={"contacts": [{"phone": no_consent}, {"phone": "12"}]},
     )
     assert r.json()["added"] == 1 and r.json()["invalid"][0]["reason"] == "invalid_phone"
     go(client, t, c)

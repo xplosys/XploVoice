@@ -67,7 +67,7 @@ class CampaignOut(CampaignIn):
 
 
 class ContactIn(BaseModel):
-    phone: str = Field(min_length=4, max_length=30)
+    phone: str = Field(min_length=1, max_length=30)  # bad numbers are reported per row, not refused as a whole
     name: str = Field(default="", max_length=120)
     timezone: str | None = Field(default=None, max_length=60)
 

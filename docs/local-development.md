@@ -63,3 +63,18 @@ test only:
 - **Approvals**: cancelling needs a person's approval by default. Approve or deny under **Business tools**.
 - **Webhooks**: add one under **Integrations**. The address must be public https. The dispatcher runs inside the
   API (`XV_WEBHOOK_DISPATCHER=true`, default). SMS, email and CRM connectors are awaiting configuration.
+
+## Telephony (Phase 6)
+
+- Without a carrier, use the **simulated carrier** (development only). On Phone numbers: add a trunk of type
+  "Simulated carrier", add a number (for example `080 4123 4567`), route it to a published agent, then use
+  "Simulate an inbound call". Open the call to send carrier events (in progress, completed). Campaign calls to a
+  number ending in 2 are busy, 3 not answered, 4 failed; anything else is answered.
+- The dialer and the inbound queue run inside the API process (`XV_CAMPAIGN_DIALER=true`, the default; tests turn
+  it off). Calling windows use the person's local time: in India, campaign calls wait until 09:00.
+- Your own SIP trunk: needs a LiveKit server with SIP (`livekit/sip`) reachable at `XV_LIVEKIT_INTERNAL_URL`, and
+  LiveKit webhooks sent to `POST /v1/webhooks/livekit` (signed with the LiveKit API key and secret). Add the trunk
+  with your carrier's SIP address, username, password and allowed IPs, then point your carrier's numbers at the
+  LiveKit SIP address.
+- Kill switches: the organisation's "Pause all phone calls" on Phone numbers, and `XV_TELEPHONY_ENABLED=false` for
+  the whole platform.

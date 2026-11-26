@@ -130,12 +130,17 @@ export type VoiceSession = { call_id: string; room: string; livekit_url: string;
 export type CallRow = { id: string; agent_id: string; agent_name: string; agent_version: number; channel: string;
   direction: string; status: string; end_reason: string | null; language: string | null; created_at: string;
   connected_at: string | null; ended_at: string | null; duration_seconds: string | null; recoveries: number;
-  agent_version_id: string;
+  agent_version_id: string; state: string; answered_at: string | null; from_number: string | null;
+  to_number: string | null; campaign_id: string | null;
   providers_used: Partial<Record<"llm" | "stt" | "tts", { provider: string; model: string; model_version: string; account: string }>> };
 export type CallSegment = { seq: number; speaker: "caller" | "agent"; text: string; language: string | null;
   start_ms: number | null; end_ms: number | null; interrupted: boolean };
 export type CallEvent = { type: string; data: Record<string, unknown>; occurred_at: string };
-export type CallDetail = CallRow & { transcript: CallSegment[]; events: CallEvent[] };
+export type CallTransition = { from_state: string; to_state: string; source: string; reason: string | null; occurred_at: string };
+export type CarrierEvent = { provider_key: string; type: string; state: string | null; applied: boolean; occurred_at: string;
+  received_at: string };
+export type CallDetail = CallRow & { transcript: CallSegment[]; events: CallEvent[]; transitions: CallTransition[];
+  carrier_events: CarrierEvent[] };
 
 // ------------------------------------------------------------------ Phase 5
 export type KnowledgeBase = { id: string; name: string; description: string; status: "active" | "archived"; documents: number;
@@ -185,3 +190,37 @@ export type Delivery = { id: number; event_type: string; status: string; attempt
 export type ChatStart = { call_id: string; agent_name: string; version: number; greeting: string | null };
 export type ChatReply = { reply: string; tools: { name: string; status: string; execution_id: string }[];
   retrieval: { document: string; score: number }[]; ended: boolean; end_reason: string | null };
+
+// ------------------------------------------------------------------ Phase 6 telephony
+export type TelephonyProvider = { key: string; name: string; kind: string; status: string; description: string;
+  capabilities: Record<string, unknown>; note: string | null };
+export type Trunk = { id: string; name: string; provider_key: string; direction: "inbound" | "outbound" | "both";
+  address: string | null; transport: string; auth_username: string | null; has_password: boolean; allowed_addresses: string[];
+  billing_pulse_seconds: number; status: "active" | "disabled"; sync_status: string; sync_error: string | null; numbers: number;
+  created_at: string; updated_at: string };
+export type InboundRoute = { agent_id: string; agent_name: string; agent_status: string; queue_id: string | null;
+  fallback_action: "message" | "hangup"; fallback_message: string; status: "active" | "disabled" };
+export type PhoneNumber = { id: string; e164: string; country_code: string; trunk_id: string; trunk_name: string;
+  provider_key: string; label: string; inbound: boolean; outbound: boolean; status: "active" | "released";
+  route: InboundRoute | null; created_at: string };
+export type CallQueue = { id: string; name: string; max_waiting: number; max_wait_seconds: number; waiting: number; created_at: string };
+export type DestinationPolicy = { telephony_enabled: boolean; allowed_countries: string[]; block_premium: boolean;
+  max_concurrent_outbound: number; daily_outbound_minutes: number; platform_enabled: boolean; live_outbound: number;
+  outbound_minutes_today: number; updated_at: string };
+export type Campaign = { id: string; name: string; purpose: string; agent_id: string; agent_name: string; from_number_id: string;
+  from_number: string; timezone: string; window_start: string; window_end: string; days: string[]; max_attempts: number;
+  retry_minutes: number; max_concurrent: number; calls_per_minute: number;
+  status: "draft" | "approved" | "running" | "paused" | "completed" | "cancelled"; approved_by_membership_id: string | null;
+  approved_at: string | null; created_by_membership_id: string | null; created_at: string; updated_at: string;
+  counts: Record<string, number> };
+export type CampaignContact = { id: string; phone: string; name: string; timezone: string | null; status: string; attempts: number;
+  next_attempt_at: string; last_outcome: string | null; last_call_id: string | null; block_reason: string | null; updated_at: string };
+export type PolicyCheck = { check: string; ok: boolean; detail: string };
+export type PolicyDecision = { id: number; contact_id: string | null; call_id: string | null; phone: string;
+  decision: "allow" | "defer" | "block"; reason: string | null; checks: PolicyCheck[]; created_at: string };
+export type ImportResult = { added: number; duplicates: number; invalid: { row: number; phone: string; reason: string }[];
+  consent_recorded: number; on_do_not_call_list: number };
+export type ConsentRecord = { id: string; phone: string; purpose: string; status: string; basis: string; source: string;
+  evidence: string; call_id: string | null; captured_at: string; revoked_at: string | null; revoked_reason: string | null };
+export type SuppressionEntry = { id: string; phone: string; reason: string; source: string; note: string; call_id: string | null;
+  created_at: string; removed_at: string | null; removed_reason: string | null };

@@ -25,9 +25,12 @@ export default async function Overview() {
         <ul className="space-y-2 text-sm text-slate-700">
           <li className="flex justify-between"><span>Workspace, team and roles</span><Badge tone="green">Available</Badge></li>
           <li className="flex justify-between"><span>Two-factor sign-in and audit log</span><Badge tone="green">Available</Badge></li>
-          <li className="flex justify-between"><span>AI provider keys and usage metering</span><Badge>Phase 2</Badge></li>
-          <li className="flex justify-between"><span>Voice agent builder and test calls</span><Badge>Phase 3–4</Badge></li>
-          <li className="flex justify-between"><span>Phone numbers and live calls</span><Badge>Phase 6</Badge></li>
+          <li className="flex justify-between"><span>AI provider keys and usage metering</span><Badge tone="green">Available</Badge></li>
+          <li className="flex justify-between"><span>Voice agent builder and test calls</span><Badge tone="green">Available</Badge></li>
+          <li className="flex justify-between"><span>Knowledge base, booking, leads and tickets</span><Badge tone="green">Available</Badge></li>
+          <li className="flex justify-between"><span>Phone numbers, inbound calls and outbound campaigns (your own SIP trunk)</span><Badge tone="green">Available</Badge></li>
+          <li className="flex justify-between"><span>Numbers bought from XploVoice</span><Badge tone="amber">Awaiting carrier</Badge></li>
+          <li className="flex justify-between"><span>Billing and plans</span><Badge>Phase 7</Badge></li>
         </ul>
       </Card>
     </div>

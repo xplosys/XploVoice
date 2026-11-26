@@ -67,8 +67,8 @@ def _capacity(s, tenant_id: UUID) -> bool:  # type: ignore[no-untyped-def]
 
 
 def _to_agent(call: Call) -> None:
+    lifecycle.enter(call, "routing", source="queue")  # first, so the session move adds no "queued" step
     lifecycle.move(call, "dispatching", source="queue")
-    lifecycle.enter(call, "routing", source="queue")
 
 
 def _fallback(call: Call, route: InboundRoute | None, reason: str) -> str:
