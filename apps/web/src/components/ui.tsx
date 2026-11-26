@@ -9,7 +9,7 @@ export function Button({ className, variant = "primary", ...p }: ButtonHTMLAttri
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition",
+        `ui-btn ui-btn-${variant} inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition`,
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 disabled:opacity-50",
         variant === "primary" && "bg-brand-600 text-white hover:bg-brand-700",
         variant === "secondary" && "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50",
@@ -47,7 +47,7 @@ export function Label({ children, htmlFor }: { children: ReactNode; htmlFor?: st
 }
 
 export function Card({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn("rounded-xl border border-slate-200 bg-white p-6 shadow-sm", className)}>{children}</div>;
+  return <div className={cn("ui-card rounded-xl border border-slate-200 bg-white p-6 shadow-sm", className)}>{children}</div>;
 }
 
 export function Badge({ children, tone = "slate" }: { children: ReactNode; tone?: "slate" | "green" | "amber" | "red" | "brand" }) {
@@ -55,14 +55,14 @@ export function Badge({ children, tone = "slate" }: { children: ReactNode; tone?
     slate: "bg-slate-100 text-slate-700", green: "bg-emerald-50 text-emerald-700", amber: "bg-amber-50 text-amber-800",
     red: "bg-red-50 text-red-700", brand: "bg-brand-50 text-brand-700",
   };
-  return <span className={cn("inline-flex rounded-full px-2 py-0.5 text-xs font-medium", tones[tone])}>{children}</span>;
+  return <span className={cn(`ui-badge ui-badge-${tone} inline-flex rounded-full px-2 py-0.5 text-xs font-medium`, tones[tone])}>{children}</span>;
 }
 
 export function FormError({ message }: { message?: string | null }) {
   if (!message) return null;
-  return <p role="alert" className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p>;
+  return <p role="alert" className="ui-error rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p>;
 }
 
 export function Notice({ children }: { children: ReactNode }) {
-  return <p className="rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">{children}</p>;
+  return <p className="ui-notice rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-900">{children}</p>;
 }

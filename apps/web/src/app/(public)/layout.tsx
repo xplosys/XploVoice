@@ -1,6 +1,7 @@
 // XploVoice | Copyright (c) 2026 Xplosys. All rights reserved. | Confidential - Proprietary to Xplosys
 import Link from "next/link";
 import { Copyright, Logo } from "@/components/brand";
+import { ThemePicker } from "@/components/theme-picker";
 
 const NAV = [
   ["Features", "/features"], ["Solutions", "/solutions"], ["Industries", "/industries"], ["Pricing", "/pricing"],
@@ -16,7 +17,8 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           <nav className="hidden gap-5 text-sm text-slate-600 lg:flex">
             {NAV.map(([label, href]) => <Link key={href} href={href} className="hover:text-slate-900">{label}</Link>)}
           </nav>
-          <div className="flex gap-2 text-sm">
+          <div className="flex items-center gap-2 text-sm">
+            <ThemePicker />
             <Link href="/login" className="rounded-md px-3 py-2 text-slate-700 hover:bg-slate-100">Sign in</Link>
             <Link href="/register" className="rounded-md bg-brand-600 px-3 py-2 font-medium text-white hover:bg-brand-700">
               Get started

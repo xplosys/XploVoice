@@ -1,0 +1,178 @@
+/* XploVoice | Copyright (c) 2026 Xplosys. All rights reserved. | Confidential - Proprietary to Xplosys
+ *
+ * Dark mode. Applied when <html data-mode="dark">; the theme comes from <html data-theme="…">.
+ * Every theme shares one look: near-black surfaces, cards with a near-black to colour gradient and a bright diagonal
+ * sheen, white text, pill badges, rounded white buttons, DM Sans at 16px titles and 15px body text.
+ * Light mode is untouched: everything here is scoped to [data-mode="dark"].
+ * The rules remap the Tailwind utilities the app uses, so pages need no per-page dark classes. */
+
+/* ---- Themes: only the hue changes ---------------------------------------------------------------------------- */
+:root[data-mode="dark"] {
+  --xv-deep: #3f219a;   /* right-hand end of the card gradient */
+  --xv-sheen: #6c4fb1;  /* the bright diagonal band */
+  --xv-pill: #5a46a0;   /* brand pill badges, active nav */
+  --xv-link: #cdbdff;   /* links and brand text on dark */
+}
+:root[data-mode="dark"][data-theme="indigo"]  { --xv-deep: #1f2f9c; --xv-sheen: #5068cf; --xv-pill: #3e4fa8; --xv-link: #b9c6ff; }
+:root[data-mode="dark"][data-theme="orchid"]  { --xv-deep: #7a1f86; --xv-sheen: #b75cc0; --xv-pill: #82398e; --xv-link: #f2bdf7; }
+:root[data-mode="dark"][data-theme="ocean"]   { --xv-deep: #0d5a72; --xv-sheen: #3d9fba; --xv-pill: #22708a; --xv-link: #a6e6f5; }
+:root[data-mode="dark"][data-theme="ember"]   { --xv-deep: #8a1f3c; --xv-sheen: #d0607a; --xv-pill: #94324d; --xv-link: #ffbccb; }
+:root[data-mode="dark"][data-theme="emerald"] { --xv-deep: #0f6248; --xv-sheen: #3fae86; --xv-pill: #22795b; --xv-link: #a7f0d2; }
+
+/* ---- Base ------------------------------------------------------------------------------------------------------ */
+:root[data-mode="dark"] {
+  --xv-bg: #18181a;
+  --xv-surface: #1f1e23;
+  --xv-raised: #26252b;
+  --xv-line: rgba(255, 255, 255, 0.09);
+  --xv-line-strong: rgba(255, 255, 255, 0.18);
+  --xv-text: #ffffff;
+  --xv-muted: rgba(255, 255, 255, 0.74);
+  --xv-faint: rgba(255, 255, 255, 0.55);
+  --xv-card: radial-gradient(70% 140% at 0% 0%, color-mix(in srgb, var(--xv-deep) 42%, transparent), transparent 26%),
+    linear-gradient(100deg, #1a191c 0%, #1b1a1e 38%, color-mix(in srgb, var(--xv-deep) 30%, #1b1a1e) 48%,
+      color-mix(in srgb, var(--xv-deep) 65%, #1b1a1e) 55%, var(--xv-sheen) 63%,
+      color-mix(in srgb, var(--xv-sheen) 55%, var(--xv-deep)) 69%, var(--xv-deep) 80%, var(--xv-deep) 100%);
+  color-scheme: dark;
+}
+:root[data-mode="dark"] body {
+  background: var(--xv-bg);
+  color: var(--xv-text);
+  font-family: "DM Sans Variable", "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* Type scale from the reference: 16px semibold titles, 15px body. */
+[data-mode="dark"] .text-sm { font-size: 15px; line-height: 1.6; }
+[data-mode="dark"] .text-xs { font-size: 13px; line-height: 1.45; }
+[data-mode="dark"] h1 { font-weight: 700; letter-spacing: -0.01em; }
+[data-mode="dark"] h2, [data-mode="dark"] h3 { font-size: 16px; font-weight: 600; line-height: 1.5; }
+[data-mode="dark"] .font-medium { font-weight: 600; }
+[data-mode="dark"] ::selection { background: var(--xv-sheen); color: #fff; }
+
+/* ---- Surfaces -------------------------------------------------------------------------------------------------- */
+[data-mode="dark"] .bg-white { background-color: rgba(255, 255, 255, 0.045); }
+[data-mode="dark"] .bg-slate-50 { background-color: rgba(0, 0, 0, 0.28); }
+[data-mode="dark"] .rounded-md.bg-slate-50 { border-radius: 0.875rem; }
+[data-mode="dark"] .bg-slate-100 { background-color: rgba(255, 255, 255, 0.08); }
+[data-mode="dark"] .min-h-screen.bg-slate-50,
+[data-mode="dark"] .min-h-screen.bg-white { background-color: var(--xv-bg); }
+[data-mode="dark"] aside.bg-white,
+[data-mode="dark"] header.bg-white { background-color: #1c1b20; }
+[data-mode="dark"] .hover\:bg-slate-50:hover,
+[data-mode="dark"] .hover\:bg-slate-100:hover { background-color: rgba(255, 255, 255, 0.08); }
+[data-mode="dark"] .shadow-sm, [data-mode="dark"] .shadow-lg { box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.6); }
+
+/* Cards: the reference gradient with its diagonal sheen. */
+[data-mode="dark"] .ui-card.ui-card {
+  background-color: var(--xv-surface);
+  background-image: var(--xv-card);
+  border-color: transparent;
+  border-radius: 1.5rem;
+  color: var(--xv-text);
+}
+[data-mode="dark"] .ui-card.ui-card.border-red-300 { border-color: rgba(248, 113, 113, 0.7); }
+[data-mode="dark"] .rounded-xl.border:not(.ui-card):not(.xv-menu) { border-radius: 1.25rem; }
+
+/* Lines */
+[data-mode="dark"] .border-slate-100, [data-mode="dark"] .border-slate-200 { border-color: var(--xv-line); }
+[data-mode="dark"] .border-slate-300 { border-color: var(--xv-line-strong); }
+[data-mode="dark"] .hover\:border-slate-300:hover { border-color: rgba(255, 255, 255, 0.3); }
+[data-mode="dark"] .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+[data-mode="dark"] .divide-slate-200 > :not([hidden]) ~ :not([hidden]) { border-color: var(--xv-line); }
+[data-mode="dark"] .border-brand-500, [data-mode="dark"] .border-brand-600 { border-color: var(--xv-link); }
+[data-mode="dark"] .border-amber-300 { border-color: rgba(251, 191, 36, 0.45); }
+[data-mode="dark"] .border-red-300 { border-color: rgba(248, 113, 113, 0.55); }
+
+/* ---- Text ------------------------------------------------------------------------------------------------------ */
+[data-mode="dark"] .text-slate-900, [data-mode="dark"] .text-slate-800,
+[data-mode="dark"] .hover\:text-slate-900:hover { color: var(--xv-text); }
+[data-mode="dark"] .text-slate-700 { color: rgba(255, 255, 255, 0.86); }
+[data-mode="dark"] .text-slate-600 { color: var(--xv-muted); }
+[data-mode="dark"] .text-slate-500 { color: var(--xv-faint); }
+[data-mode="dark"] .text-slate-400 { color: rgba(255, 255, 255, 0.42); }
+[data-mode="dark"] .text-brand-600, [data-mode="dark"] .text-brand-700 { color: var(--xv-link); }
+[data-mode="dark"] .text-red-700 { color: #ffaeb2; }
+[data-mode="dark"] .text-emerald-700, [data-mode="dark"] .text-emerald-800 { color: #8ff0c4; }
+[data-mode="dark"] .text-amber-700, [data-mode="dark"] .text-amber-800,
+[data-mode="dark"] .text-amber-900 { color: #ffd27a; }
+[data-mode="dark"] a.underline { text-decoration-color: color-mix(in srgb, currentColor 45%, transparent); text-underline-offset: 3px; }
+
+/* ---- Tints (status messages, selected rows) -------------------------------------------------------------------- */
+[data-mode="dark"] .bg-brand-50 { background-color: var(--xv-pill); color: #fff; }
+[data-mode="dark"] .bg-brand-50.text-brand-700 { color: #fff; }
+[data-mode="dark"] .bg-emerald-50 { background-color: rgba(52, 211, 153, 0.14); }
+[data-mode="dark"] .bg-amber-50 { background-color: rgba(251, 191, 36, 0.13); }
+[data-mode="dark"] .bg-red-50 { background-color: rgba(248, 113, 113, 0.16); }
+[data-mode="dark"] .ui-error, [data-mode="dark"] .ui-notice,
+[data-mode="dark"] p.rounded-md.bg-emerald-50 { border-radius: 0.875rem; }
+[data-mode="dark"] .bg-brand-600 { background-color: var(--xv-pill); }
+[data-mode="dark"] .hover\:bg-brand-700:hover { background-color: color-mix(in srgb, var(--xv-pill) 80%, #fff); }
+
+/* ---- Badges: pills like "Promotional" -------------------------------------------------------------------------- */
+[data-mode="dark"] .ui-badge {
+  border-radius: 9999px;
+  padding: 0.2rem 0.7rem;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+[data-mode="dark"] .ui-badge-brand { background-color: var(--xv-pill); color: #fff; }
+[data-mode="dark"] .ui-badge-slate { background-color: rgba(255, 255, 255, 0.13); color: #fff; }
+[data-mode="dark"] .ui-badge-green { background-color: rgba(52, 211, 153, 0.2); color: #a6f4d0; }
+[data-mode="dark"] .ui-badge-amber { background-color: rgba(251, 191, 36, 0.2); color: #ffd98c; }
+[data-mode="dark"] .ui-badge-red { background-color: rgba(248, 113, 113, 0.22); color: #ffbcbc; }
+
+/* ---- Buttons: rounded white like "View" ------------------------------------------------------------------------ */
+[data-mode="dark"] .ui-btn { border-radius: 9999px; font-weight: 600; padding-left: 1.25rem; padding-right: 1.25rem; }
+[data-mode="dark"] .ui-btn.px-2 { padding-left: 0.75rem; padding-right: 0.75rem; }
+[data-mode="dark"] .ui-btn-primary { background-color: #fff; color: #141318; }
+[data-mode="dark"] .ui-btn-primary:hover { background-color: #e9e7f1; }
+[data-mode="dark"] .ui-btn-secondary { background-color: rgba(255, 255, 255, 0.1); border-color: rgba(255, 255, 255, 0.22); color: #fff; }
+[data-mode="dark"] .ui-btn-secondary:hover { background-color: rgba(255, 255, 255, 0.18); }
+[data-mode="dark"] .ui-btn-ghost { color: rgba(255, 255, 255, 0.86); }
+[data-mode="dark"] .ui-btn-ghost:hover { background-color: rgba(255, 255, 255, 0.08); color: #fff; }
+[data-mode="dark"] .ui-btn-danger { background-color: #e5484d; color: #fff; }
+[data-mode="dark"] .ui-btn-danger:hover { background-color: #f2555a; }
+[data-mode="dark"] .focus-visible\:ring-brand-500:focus-visible,
+[data-mode="dark"] .ring-brand-500 { --tw-ring-color: var(--xv-link); }
+[data-mode="dark"] .ring-offset-2 { --tw-ring-offset-color: #1c1b20; }
+/* Call-to-action links styled as primary buttons */
+[data-mode="dark"] a.bg-brand-600 { background-color: #fff; color: #141318; border-radius: 9999px; font-weight: 600; }
+[data-mode="dark"] a.bg-brand-600:hover { background-color: #e9e7f1; }
+/* Plain bordered link-buttons (e.g. "Test call", "Compare", filter pills) */
+[data-mode="dark"] a.rounded-md.border, [data-mode="dark"] button.rounded-md.border:not(.ui-btn) { border-radius: 9999px; }
+
+/* ---- Form fields ----------------------------------------------------------------------------------------------- */
+[data-mode="dark"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+[data-mode="dark"] select,
+[data-mode="dark"] textarea {
+  background-color: rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  border-radius: 0.75rem;
+}
+[data-mode="dark"] input::placeholder, [data-mode="dark"] textarea::placeholder { color: rgba(255, 255, 255, 0.45); }
+[data-mode="dark"] input:focus, [data-mode="dark"] select:focus, [data-mode="dark"] textarea:focus {
+  border-color: var(--xv-link);
+  --tw-ring-color: var(--xv-link);
+}
+[data-mode="dark"] option, [data-mode="dark"] optgroup { background-color: var(--xv-raised); color: #fff; }
+[data-mode="dark"] input[type="checkbox"], [data-mode="dark"] input[type="radio"] { accent-color: var(--xv-sheen); }
+[data-mode="dark"] input[type="file"] { color: var(--xv-muted); }
+[data-mode="dark"] input[type="file"]::file-selector-button {
+  border: 0; border-radius: 9999px; background: #fff; color: #141318; font-weight: 600; padding: 0.35rem 0.9rem; margin-right: 0.75rem;
+}
+[data-mode="dark"] code, [data-mode="dark"] pre { color: #f1edff; }
+
+/* ---- Tables ---------------------------------------------------------------------------------------------------- */
+[data-mode="dark"] thead { color: var(--xv-faint); }
+[data-mode="dark"] tbody tr:hover { background-color: rgba(255, 255, 255, 0.035); }
+
+/* ---- Appearance menu ------------------------------------------------------------------------------------------- */
+[data-mode="dark"] .xv-menu { background-color: var(--xv-raised); border-color: var(--xv-line-strong); }
+[data-mode="dark"] .xv-segment { background-color: rgba(0, 0, 0, 0.35); }
+[data-mode="dark"] .xv-segment-on { background-color: #fff; color: #141318; }
+[data-mode="dark"] .xv-swatch { border-radius: 0.875rem; }

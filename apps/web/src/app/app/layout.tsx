@@ -5,6 +5,7 @@ import { api, type MyTenant } from "@/lib/api";
 import { can, getMe } from "@/lib/me";
 import { Copyright, Logo } from "@/components/brand";
 import { SideNav, type NavItem } from "@/components/nav";
+import { ThemePicker } from "@/components/theme-picker";
 import { Badge, Button, Select } from "@/components/ui";
 import { logoutAction } from "@/app/(auth)/actions";
 import { switchTenantAction } from "./actions";
@@ -60,6 +61,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-3 text-sm">
             {me.is_platform_admin && <Link href="/admin" className="text-brand-700 underline">Platform admin</Link>}
             <span className="hidden text-slate-600 sm:inline">{me.display_name}</span>
+            <ThemePicker />
             <form action={logoutAction}><Button variant="ghost" type="submit">Sign out</Button></form>
           </div>
         </header>

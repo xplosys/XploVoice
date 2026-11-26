@@ -3,6 +3,7 @@ import Link from "next/link";
 import { api, ApiError } from "@/lib/api";
 import { getMe } from "@/lib/me";
 import { Copyright, Logo } from "@/components/brand";
+import { ThemePicker } from "@/components/theme-picker";
 import { Badge, Button, Card, FormError, Input } from "@/components/ui";
 import { reactivateAction, suspendAction } from "./actions";
 
@@ -26,7 +27,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     <div className="min-h-screen bg-slate-50">
       <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-3">
         <div className="flex items-center gap-3"><Logo href="/admin" /><Badge tone="red">Platform admin</Badge></div>
-        <nav className="flex gap-4 text-sm"><Link href="/admin/ai" className="text-brand-700 underline">AI catalog</Link><Link href="/app" className="text-brand-700 underline">Back to workspace</Link></nav>
+        <nav className="flex items-center gap-4 text-sm"><Link href="/admin/ai" className="text-brand-700 underline">AI catalog</Link><Link href="/app" className="text-brand-700 underline">Back to workspace</Link><ThemePicker /></nav>
       </header>
       <main className="mx-auto max-w-6xl space-y-6 p-6">
         <h1 className="text-2xl font-semibold">Tenants</h1>
