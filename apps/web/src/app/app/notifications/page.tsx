@@ -5,6 +5,7 @@ import { can, getMe } from "@/lib/me";
 import { ActionForm } from "@/components/forms/action-form";
 import { Badge, Card, Input, Label, Notice, Select } from "@/components/ui";
 import { createTemplateAction, templateAction } from "../workflow-actions";
+import { When } from "@/components/when";
 
 export const metadata = { title: "Messages · XploVoice" };
 
@@ -69,7 +70,7 @@ export default async function NotificationsPage() {
           <ul className="mt-2 divide-y divide-slate-100 text-sm">
             {log.map((n) => (
               <li key={n.id} className="px-6 py-3">
-                <p className="text-xs text-slate-500">{new Date(n.created_at).toLocaleString()} · {n.channel} to {n.recipient} · <Badge tone={n.status === "held" ? "amber" : n.status === "failed" ? "red" : "slate"}>{n.status}</Badge></p>
+                <p className="text-xs text-slate-500"><When iso={n.created_at} /> · {n.channel} to {n.recipient} · <Badge tone={n.status === "held" ? "amber" : n.status === "failed" ? "red" : "slate"}>{n.status}</Badge></p>
                 <p>{n.body}</p>
                 {n.status_reason && <p className="text-xs text-amber-800">{n.status_reason}</p>}
               </li>

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { api, type AuditEvent } from "@/lib/api";
 import { can, getMe } from "@/lib/me";
 import { Badge, Card } from "@/components/ui";
+import { When } from "@/components/when";
 
 export const metadata = { title: "Audit log · XploVoice" };
 const PAGE = 50;
@@ -28,7 +29,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} className="border-b border-slate-100 last:border-0">
-                <td className="whitespace-nowrap px-4 py-2 text-slate-600">{new Date(r.created_at).toLocaleString()}</td>
+                <td className="whitespace-nowrap px-4 py-2 text-slate-600"><When iso={r.created_at} /></td>
                 <td className="px-4 py-2 font-mono text-xs">{r.action}</td>
                 <td className="px-4 py-2 text-slate-600">{r.actor_kind}{r.actor_user_id === me.user_id ? " (you)" : ""}</td>
                 <td className="px-4 py-2 text-slate-600">{r.resource_type ?? "—"}</td>

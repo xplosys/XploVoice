@@ -7,6 +7,7 @@ import { EXEC_TONE, label } from "@/lib/tones";
 import { ActionForm } from "@/components/forms/action-form";
 import { Badge, Card, Input } from "@/components/ui";
 import { decisionAction, toolPolicyAction } from "../workflow-actions";
+import { When } from "@/components/when";
 
 export const metadata = { title: "Business tools · XploVoice" };
 
@@ -41,7 +42,7 @@ export default async function ToolsPage() {
                   <div>
                     <p className="font-medium">{e.label}</p>
                     <p className="text-xs text-slate-600">{brief(e.input)}</p>
-                    <p className="text-xs text-slate-500">{new Date(e.created_at).toLocaleString()}{e.call_id && <> · <Link className="underline" href={`/app/calls/${e.call_id}`}>call</Link></>}</p>
+                    <p className="text-xs text-slate-500"><When iso={e.created_at} />{e.call_id && <> · <Link className="underline" href={`/app/calls/${e.call_id}`}>call</Link></>}</p>
                   </div>
                   {approve && <div className="flex items-center gap-2">
                     <ActionForm action={decisionAction} submit="Approve" className=""><input type="hidden" name="id" value={e.id} /><input type="hidden" name="decision" value="approve" /></ActionForm>
@@ -91,7 +92,7 @@ export default async function ToolsPage() {
               <tbody className="divide-y divide-slate-100">
                 {recent.map((e) => (
                   <tr key={e.id} className="align-top">
-                    <td className="px-6 py-2 text-slate-500">{new Date(e.created_at).toLocaleString()}{e.call_id && <> · <Link className="underline" href={`/app/calls/${e.call_id}`}>call</Link></>}</td>
+                    <td className="px-6 py-2 text-slate-500"><When iso={e.created_at} />{e.call_id && <> · <Link className="underline" href={`/app/calls/${e.call_id}`}>call</Link></>}</td>
                     <td className="px-3 py-2">{e.label}</td>
                     <td className="px-3 py-2"><Badge tone={EXEC_TONE[e.status] ?? "slate"}>{label(e.status)}</Badge></td>
                     <td className="max-w-md px-3 py-2 text-xs text-slate-600">{e.error ?? e.decision_reason ?? brief(e.result)}</td>

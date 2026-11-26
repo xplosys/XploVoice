@@ -5,6 +5,7 @@ import { api, ApiError, type Agent, type AgentVersion, type AgentVersionDetail }
 import { flatten } from "@/lib/agents";
 import { can, getMe } from "@/lib/me";
 import { Badge, Card } from "@/components/ui";
+import { When } from "@/components/when";
 
 export const metadata = { title: "Agent version · XploVoice" };
 
@@ -35,7 +36,7 @@ export default async function VersionPage({ params, searchParams }: {
         <Link href={`/app/agents/${agent.id}`} className="text-sm text-brand-700 underline">{agent.name}</Link>
         <h1 className="flex items-center gap-3 text-2xl font-semibold">Version {v.version}
           {v.is_published && <Badge tone="green">live</Badge>}{!v.is_published && v.was_published && <Badge>was live</Badge>}</h1>
-        <p className="text-sm text-slate-600">Saved {new Date(v.created_at).toLocaleString()}{v.created_by ? ` by ${v.created_by}` : ""}. {v.test_calls} completed test call{v.test_calls === 1 ? "" : "s"}. Versions can never be changed; editing the agent saves a new one.</p>
+        <p className="text-sm text-slate-600">Saved <When iso={v.created_at} />{v.created_by ? ` by ${v.created_by}` : ""}. {v.test_calls} completed test call{v.test_calls === 1 ? "" : "s"}. Versions can never be changed; editing the agent saves a new one.</p>
         {v.note && <p className="text-sm text-slate-700">Note: {v.note}</p>}
         <p className="mt-1 font-mono text-xs text-slate-500">Content hash {v.content_hash.slice(0, 16)}</p>
       </div>

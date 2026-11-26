@@ -7,6 +7,7 @@ import { can, getMe } from "@/lib/me";
 import { Badge, Card } from "@/components/ui";
 import { AgentBuilder } from "@/components/forms/agent-builder";
 import { LifecyclePanel, VersionAction } from "@/components/forms/agent-lifecycle";
+import { When } from "@/components/when";
 
 export const metadata = { title: "Voice agent · XploVoice" };
 
@@ -73,7 +74,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                     {!v.is_published && v.was_published && <Badge>was live</Badge>}
                     {v.id === agent.version_id && <Badge tone="brand">latest</Badge>}
                   </div>
-                  <p className="text-xs text-slate-500">{new Date(v.created_at).toLocaleString()}{v.created_by ? ` · ${v.created_by}` : ""} · {v.test_calls} test call{v.test_calls === 1 ? "" : "s"}</p>
+                  <p className="text-xs text-slate-500"><When iso={v.created_at} />{v.created_by ? ` · ${v.created_by}` : ""} · {v.test_calls} test call{v.test_calls === 1 ? "" : "s"}</p>
                   {v.note && <p className="text-xs text-slate-600">{v.note}</p>}
                   {can(me, "agents:publish") && <div className="mt-1"><VersionAction key={`${v.id}-${agent.published_version_id}`} agent={agent} v={v} /></div>}
                 </li>
@@ -87,7 +88,7 @@ export default async function AgentPage({ params }: { params: Promise<{ id: stri
                 {history.map((h, i) => (
                   <li key={i}>
                     <span className="font-medium">{ACTION[h.action] ?? h.action}{h.version ? ` version ${h.version}` : ""}</span>
-                    <span className="text-xs text-slate-500"> · {new Date(h.created_at).toLocaleString()}{h.actor ? ` · ${h.actor}` : ""}</span>
+                    <span className="text-xs text-slate-500"> · <When iso={h.created_at} />{h.actor ? ` · ${h.actor}` : ""}</span>
                     {h.reason && <p className="text-xs text-slate-600">{h.reason}</p>}
                   </li>
                 ))}

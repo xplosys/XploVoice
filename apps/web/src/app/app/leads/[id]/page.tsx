@@ -8,6 +8,7 @@ import { ActionForm } from "@/components/forms/action-form";
 import { TzOffset } from "@/components/forms/phase5";
 import { Badge, Card, Input, Label, Select } from "@/components/ui";
 import { addFollowUpAction, followUpAction, leadNoteAction, leadStatusAction } from "../../workflow-actions";
+import { When } from "@/components/when";
 
 export const metadata = { title: "Lead · XploVoice" };
 
@@ -27,7 +28,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
       <div>
         <Link href="/app/leads" className="text-sm text-brand-700 underline">All leads</Link>
         <h1 className="mt-1 flex items-center gap-3 text-2xl font-semibold">{lead.name} <Badge tone={LEAD_TONE[lead.status]}>{lead.status}</Badge></h1>
-        <p className="text-sm text-slate-600">Score {lead.score ?? "–"} · from {lead.source}{lead.call_id && <> · <Link className="underline" href={`/app/calls/${lead.call_id}`}>call record</Link></>} · added {new Date(lead.created_at).toLocaleString()}</p>
+        <p className="text-sm text-slate-600">Score {lead.score ?? "–"} · from {lead.source}{lead.call_id && <> · <Link className="underline" href={`/app/calls/${lead.call_id}`}>call record</Link></>} · added <When iso={lead.created_at} /></p>
       </div>
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <Card>
@@ -39,7 +40,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
             {lead.activities.length === 0 && <li className="text-slate-600">Nothing yet.</li>}
             {lead.activities.map((a, i) => (
               <li key={i} className="rounded-md border border-slate-200 p-2">
-                <p className="text-xs text-slate-500">{label(a.kind)} · {new Date(a.created_at).toLocaleString()}{a.call_id && <> · <Link className="underline" href={`/app/calls/${a.call_id}`}>call</Link></>}</p>
+                <p className="text-xs text-slate-500">{label(a.kind)} · <When iso={a.created_at} />{a.call_id && <> · <Link className="underline" href={`/app/calls/${a.call_id}`}>call</Link></>}</p>
                 <p className="whitespace-pre-wrap">{a.body}</p>
               </li>
             ))}
@@ -55,7 +56,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
         <div className="space-y-6">
           {manage && <Card>
             <h2 className="mb-2 font-medium">Status</h2>
-            <ActionForm action={leadStatusAction} submit="Update">
+            <ActionForm key={lead.status} action={leadStatusAction} submit="Update">
               <input type="hidden" name="id" value={lead.id} />
               <Select aria-label="Status" name="status" defaultValue={lead.status}>{["new", "contacted", "qualified", "won", "lost"].map((s) => <option key={s}>{s}</option>)}</Select>
             </ActionForm>
@@ -66,7 +67,7 @@ export default async function LeadPage({ params }: { params: Promise<{ id: strin
               {lead.follow_ups.length === 0 && <li className="text-slate-600">None.</li>}
               {lead.follow_ups.map((f) => (
                 <li key={f.id} className="flex items-start justify-between gap-2">
-                  <span>{new Date(f.due_at).toLocaleString()} · {f.channel}{f.note && <span className="block text-xs text-slate-500">{f.note}</span>}</span>
+                  <span><When iso={f.due_at} /> · {f.channel}{f.note && <span className="block text-xs text-slate-500">{f.note}</span>}</span>
                   {f.status === "open" && manage ? <ActionForm action={followUpAction} submit="Done" variant="ghost" className="">
                     <input type="hidden" name="id" value={f.id} /><input type="hidden" name="lead_id" value={lead.id} /><input type="hidden" name="status" value="done" />
                   </ActionForm> : <Badge>{f.status}</Badge>}

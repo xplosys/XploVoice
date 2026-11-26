@@ -7,6 +7,7 @@ import { PRIORITY_TONE, TICKET_TONE } from "@/lib/tones";
 import { ActionForm } from "@/components/forms/action-form";
 import { Badge, Card, Input, Label, Select } from "@/components/ui";
 import { createTicketAction } from "../workflow-actions";
+import { When } from "@/components/when";
 
 export const metadata = { title: "Tickets · XploVoice" };
 
@@ -33,7 +34,7 @@ export default async function TicketsPage({ searchParams }: { searchParams: Prom
               <li key={t.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-3">
                 <div>
                   <Link className="font-medium text-brand-700 underline" href={`/app/tickets/${t.id}`}>{t.subject}</Link>
-                  <p className="text-xs text-slate-500"><span className="font-mono">{t.reference}</span> · {t.requester_name || "unknown caller"} · from {t.source} · {new Date(t.created_at).toLocaleString()}</p>
+                  <p className="text-xs text-slate-500"><span className="font-mono">{t.reference}</span> · {t.requester_name || "unknown caller"} · from {t.source} · <When iso={t.created_at} /></p>
                 </div>
                 <div className="flex gap-2"><Badge tone={PRIORITY_TONE[t.priority]}>{t.priority}</Badge><Badge tone={TICKET_TONE[t.status]}>{t.status}</Badge></div>
               </li>

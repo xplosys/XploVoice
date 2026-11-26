@@ -7,6 +7,7 @@ import { ActionForm } from "@/components/forms/action-form";
 import { Badge, Card, Input, Label } from "@/components/ui";
 import { LEAD_TONE } from "@/lib/tones";
 import { createLeadAction } from "../workflow-actions";
+import { When } from "@/components/when";
 
 export const metadata = { title: "Leads · XploVoice" };
 
@@ -43,7 +44,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
                   <td className="px-3 py-2">{l.score ?? "–"}</td>
                   <td className="px-3 py-2"><Badge tone={LEAD_TONE[l.status]}>{l.status}</Badge></td>
                   <td className="px-3 py-2">{l.source}</td>
-                  <td className="px-3 py-2 text-slate-500">{new Date(l.created_at).toLocaleString()}</td>
+                  <td className="px-3 py-2 text-slate-500"><When iso={l.created_at} /></td>
                 </tr>
               ))}
             </tbody>

@@ -7,6 +7,7 @@ import { ActionForm } from "@/components/forms/action-form";
 import { SecretForm } from "@/components/forms/phase5";
 import { Badge, Card, Input, Label } from "@/components/ui";
 import { createWebhookAction, webhookAction } from "../workflow-actions";
+import { When } from "@/components/when";
 
 export const metadata = { title: "Integrations · XploVoice" };
 
@@ -62,7 +63,7 @@ export default async function IntegrationsPage() {
                 <ul className="mt-2 space-y-1 text-xs">
                   {deliveries[i].length === 0 && <li className="text-slate-500">None yet.</li>}
                   {deliveries[i].map((d) => (
-                    <li key={d.id}>{new Date(d.created_at).toLocaleString()} · {d.event_type} · <Badge tone={DELIVERY_TONE[d.status] ?? "slate"}>{d.status}</Badge> · {d.attempts} attempt{d.attempts === 1 ? "" : "s"}{d.last_error && ` · ${d.last_error}`}{d.status === "retrying" && ` · next ${new Date(d.next_attempt_at).toLocaleTimeString()}`}</li>
+                    <li key={d.id}><When iso={d.created_at} /> · {d.event_type} · <Badge tone={DELIVERY_TONE[d.status] ?? "slate"}>{d.status}</Badge> · {d.attempts} attempt{d.attempts === 1 ? "" : "s"}{d.last_error && ` · ${d.last_error}`}{d.status === "retrying" && <> · next <When iso={d.next_attempt_at} time /></>}</li>
                   ))}
                 </ul>
               </details>

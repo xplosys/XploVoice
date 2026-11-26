@@ -7,6 +7,7 @@ import { ActionForm } from "@/components/forms/action-form";
 import { TzOffset } from "@/components/forms/phase5";
 import { Badge, Card, Input, Label, Select } from "@/components/ui";
 import { addFollowUpAction, followUpAction } from "../workflow-actions";
+import { When } from "@/components/when";
 
 export const metadata = { title: "Follow-ups · XploVoice" };
 
@@ -36,7 +37,7 @@ export default async function FollowUpsPage({ searchParams }: { searchParams: Pr
               return (
                 <li key={f.id} className="flex flex-wrap items-center justify-between gap-3 px-6 py-3">
                   <div>
-                    <p className="font-medium">{new Date(f.due_at).toLocaleString()} · {f.channel} {late && <Badge tone="red">overdue</Badge>}</p>
+                    <p className="font-medium"><When iso={f.due_at} /> · {f.channel} {late && <Badge tone="red">overdue</Badge>}</p>
                     <p className="text-slate-600">{f.note || "–"}
                       {f.lead_id && <> · <Link className="underline" href={`/app/leads/${f.lead_id}`}>{f.lead_name ?? "lead"}</Link></>}
                       {f.ticket_id && <> · <Link className="underline" href={`/app/tickets/${f.ticket_id}`}>ticket</Link></>}

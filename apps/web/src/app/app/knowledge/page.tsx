@@ -29,7 +29,7 @@ export default async function KnowledgePage() {
                 <div><Link href={`/app/knowledge/${k.id}`} className="font-medium text-brand-700 underline">{k.name}</Link>
                   {k.description && <p className="text-xs text-slate-500">{k.description}</p>}</div>
                 <div className="flex items-center gap-3 text-sm text-slate-600">
-                  <span>{k.ready_documents} of {k.documents} document{k.documents === 1 ? "" : "s"} ready · {k.chunks} passages</span>
+                  <span>{k.ready_documents} of {k.documents} document{k.documents === 1 ? "" : "s"} ready · {k.chunks} passage{k.chunks === 1 ? "" : "s"}</span>
                   {k.status === "archived" && <Badge tone="red">archived</Badge>}
                 </div>
               </li>

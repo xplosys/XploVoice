@@ -4,6 +4,7 @@ import { fmtQty } from "@/lib/utils";
 import { api, type UsageEvent, type UsageRow } from "@/lib/api";
 import { can, getMe } from "@/lib/me";
 import { Badge, Card } from "@/components/ui";
+import { When } from "@/components/when";
 
 export const metadata = { title: "Usage · XploVoice" };
 
@@ -43,7 +44,7 @@ export default async function UsagePage() {
             <tbody>
               {events.map((e) => (
                 <tr key={e.id} className="border-t border-slate-100">
-                  <td className="whitespace-nowrap px-4 py-2 text-slate-600">{new Date(e.occurred_at).toLocaleString()}</td>
+                  <td className="whitespace-nowrap px-4 py-2 text-slate-600"><When iso={e.occurred_at} /></td>
                   <td className="px-4 py-2">{e.provider} · {e.model}</td>
                   <td className="px-4 py-2 text-slate-600">{e.source_type}</td>
                   <td className="px-4 py-2 text-right">{fmtQty(e.quantity, e.unit)}</td>

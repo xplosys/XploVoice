@@ -5,6 +5,7 @@ import { api, ApiError, type KbDocument, type KnowledgeBase } from "@/lib/api";
 import { can, getMe } from "@/lib/me";
 import { ActionForm } from "@/components/forms/action-form";
 import { KbSearch, UploadForm } from "@/components/forms/phase5";
+import { When } from "@/components/when";
 import { Badge, Card, Input, Label } from "@/components/ui";
 import { addTextAction, deleteDocAction, kbStatusAction } from "../../workflow-actions";
 
@@ -27,7 +28,7 @@ export default async function KbPage({ params }: { params: Promise<{ id: string 
         <div>
           <Link href="/app/knowledge" className="text-sm text-brand-700 underline">Knowledge base</Link>
           <h1 className="flex items-center gap-3 text-2xl font-semibold">{kb.name} {!active && <Badge tone="red">archived</Badge>}</h1>
-          <p className="text-sm text-slate-600">{kb.ready_documents} document{kb.ready_documents === 1 ? "" : "s"} ready, {kb.chunks} searchable passages.{!active && " Archived knowledge bases are never searched."}</p>
+          <p className="text-sm text-slate-600">{kb.ready_documents} document{kb.ready_documents === 1 ? "" : "s"} ready, {kb.chunks} searchable passage{kb.chunks === 1 ? "" : "s"}.{!active && " Archived knowledge bases are never searched."}</p>
         </div>
         {manage && <ActionForm action={kbStatusAction} submit={active ? "Archive" : "Restore"} variant="secondary" className="flex gap-2">
           <input type="hidden" name="id" value={kb.id} /><input type="hidden" name="status" value={active ? "archived" : "active"} /></ActionForm>}
@@ -50,11 +51,11 @@ export default async function KbPage({ params }: { params: Promise<{ id: string 
               {docs.map((d) => (
                 <tr key={d.id} className="border-b border-slate-100 align-top last:border-0">
                   <td className="px-6 py-2"><span className="font-medium">{d.title}</span>
-                    <p className="truncate text-xs text-slate-500">{d.source === "text" ? "Pasted text" : d.filename} · {new Date(d.created_at).toLocaleDateString()}</p></td>
+                    <p className="truncate text-xs text-slate-500">{d.source === "text" ? "Pasted text" : d.filename} · <When iso={d.created_at} /></p></td>
                   <td className="px-4 py-2"><Badge tone={TONE[d.status]}>{d.status}</Badge>
                     {d.error && <p className="text-xs text-red-700">{d.error}</p>}
                     {d.scan_engine && d.source === "upload" && <p className="text-xs text-slate-500">Scan: {d.scan_engine}, {d.scan_result}</p>}</td>
-                  <td className="px-4 py-2 text-slate-600">{(d.size_bytes / 1024).toFixed(1)} KB<br /><span className="text-xs">{d.chunk_count} passages</span></td>
+                  <td className="px-4 py-2 text-slate-600">{(d.size_bytes / 1024).toFixed(1)} KB<br /><span className="text-xs">{d.chunk_count} passage{d.chunk_count === 1 ? "" : "s"}</span></td>
                   <td className="px-4 py-2">{manage && <ActionForm action={deleteDocAction} submit="Remove" variant="ghost" className="">
                     <input type="hidden" name="id" value={kb.id} /><input type="hidden" name="doc" value={d.id} /></ActionForm>}</td>
                 </tr>

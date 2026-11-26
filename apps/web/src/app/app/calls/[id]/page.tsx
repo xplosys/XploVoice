@@ -6,6 +6,7 @@ import { EXEC_TONE, label } from "@/lib/tones";
 import { can, getMe } from "@/lib/me";
 import { Badge, Card } from "@/components/ui";
 import { callTone } from "@/lib/utils";
+import { When } from "@/components/when";
 
 export const metadata = { title: "Call · XploVoice" };
 
@@ -40,7 +41,7 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
         <p className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
           <Badge tone={callTone(call.status)}>{call.status}</Badge>
           {call.end_reason && <span>Ended: {call.end_reason.replaceAll("_", " ")}</span>}
-          <span>· {new Date(call.created_at).toLocaleString()}</span>
+          <span>· <When iso={call.created_at} /></span>
           {call.duration_seconds && <span>· {Number(call.duration_seconds).toFixed(1)} s</span>}
           {call.recoveries > 0 && <Badge tone="amber">recovered {call.recoveries}×</Badge>}
         </p>
@@ -74,7 +75,7 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
           <h2 className="mb-2 font-medium">Actions on this call</h2>
           {retrieved > 0 && <p className="mb-2 text-sm text-slate-600">The agent looked up its knowledge base on {retrieved} turn{retrieved === 1 ? "" : "s"}.</p>}
           {execs.length > 0 && <ul className="mb-3 space-y-1 text-sm">{execs.map((e) => (
-            <li key={e.id}>{new Date(e.created_at).toLocaleTimeString()} · {e.label} <Badge tone={EXEC_TONE[e.status] ?? "slate"}>{label(e.status)}</Badge>{e.error && <span className="text-xs text-slate-500"> · {e.error}</span>}</li>))}</ul>}
+            <li key={e.id}><When iso={e.created_at} time /> · {e.label} <Badge tone={EXEC_TONE[e.status] ?? "slate"}>{label(e.status)}</Badge>{e.error && <span className="text-xs text-slate-500"> · {e.error}</span>}</li>))}</ul>}
           <ul className="space-y-1 text-sm">
             {appts.map((a) => <li key={a.id}>Appointment <span className="font-mono text-xs">{a.reference}</span> · {a.local_start.replace("T", " ")} · {a.customer_name} · <Link className="underline" href="/app/appointments">{a.status}</Link></li>)}
             {leads.map((l) => <li key={l.id}>Lead <Link className="underline" href={`/app/leads/${l.id}`}>{l.name}</Link> · {l.status}</li>)}
@@ -105,7 +106,7 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
       <Card>
         <h2 className="mb-2 font-medium">Events</h2>
         {notable.length === 0 ? <p className="text-sm text-slate-600">None.</p> : (
-          <ul className="text-xs text-slate-600">{notable.map((e, i) => <li key={i}>{new Date(e.occurred_at).toLocaleTimeString()} · {e.type.replaceAll(".", " ").replaceAll("_", " ")}{typeof e.data?.trigger === "string" ? ` (${e.data.trigger})` : ""}</li>)}</ul>
+          <ul className="text-xs text-slate-600">{notable.map((e, i) => <li key={i}><When iso={e.occurred_at} time /> · {e.type.replaceAll(".", " ").replaceAll("_", " ")}{typeof e.data?.trigger === "string" ? ` (${e.data.trigger})` : ""}</li>)}</ul>
         )}
       </Card>
     </div>
