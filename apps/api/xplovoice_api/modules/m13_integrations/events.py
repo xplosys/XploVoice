@@ -27,7 +27,14 @@ EVENT_TYPES = (
 
 
 def emit(session: Session, tenant_id: UUID, type_: str, payload: dict[str, Any]) -> int:
+    """In a healthcare organisation the payload is minimized first (M20): webhook receivers are outside the
+    organisation's BAA chain, so they get ids, statuses and times, and fetch details through the API."""
+    from ..m19_healthcare.mode import phi_mode
+    from ..m20_phi.classify import minimize
+
     assert type_ in EVENT_TYPES, type_
+    if phi_mode(session):
+        payload = minimize(payload)
     ev = IntegrationEvent(tenant_id=tenant_id, type=type_, payload=payload)
     session.add(ev)
     session.flush()

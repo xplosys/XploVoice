@@ -33,6 +33,7 @@ from ..m05_agents.schemas import AgentConfig
 from ..m09_tools import conversation
 from ..m11_workflows.service import Actor, org_holiday
 from ..m14_support.service import escalation_ticket
+from ..m19_healthcare.mode import phi_mode, policy_in_force, recording_policy
 from . import lifecycle
 from .dispatch import decode_worker_token
 from .livekit import room_token
@@ -151,8 +152,18 @@ def bootstrap(call_id: UUID, data: BootstrapIn, w: Worker = Depends(worker_auth)
         )
         if (call.options or {}).get("simulate_after_hours") and not cfg.business_hours.enabled:
             open_now = True  # nothing to simulate: the agent has no business hours
-        config = engine_config(cfg, name, open_now=open_now, max_seconds_cap=settings.max_call_seconds)
+        healthcare = phi_mode(s)
+        config = engine_config(
+            cfg,
+            name,
+            open_now=open_now,
+            max_seconds_cap=settings.max_call_seconds,
+            healthcare=healthcare,
+            privacy_notice=policy_in_force(s).privacy_notice if healthcare else "",
+        )
         config["telephony"] = telephony_config(call, cfg)
+        # Healthcare mode: recording only with the caller's consent, and only if the organisation's policy allows it
+        config["telephony"]["recording"]["policy"] = recording_policy(s, config["telephony"]["recording"]["policy"])
         elapsed = (datetime.now(UTC) - call.connected_at).total_seconds() if call.connected_at else 0.0
         return BootstrapOut(
             call_id=call.id,

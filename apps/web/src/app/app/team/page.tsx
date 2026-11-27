@@ -8,7 +8,7 @@ import { changeRoleAction, removeMemberAction, revokeInviteAction } from "../act
 
 export const metadata = { title: "Team · XploVoice" };
 
-const RANK: Record<string, number> = { viewer: 0, operator: 1, agent_designer: 2, admin: 3, owner: 4 };
+const RANK: Record<string, number> = { viewer: 0, operator: 1, agent_designer: 2, privacy_officer: 2, admin: 3, owner: 4 };
 const ROLES = Object.keys(RANK);
 
 export default async function TeamPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
@@ -50,11 +50,11 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
                       <form action={changeRoleAction} className="flex gap-2">
                         <input type="hidden" name="id" value={m.id} />
                         <Select name="role" defaultValue={m.role} aria-label={`Role for ${m.email}`} className="w-40">
-                          {assignable.map((r) => <option key={r} value={r}>{r.replace("_", " ")}</option>)}
+                          {assignable.map((r) => <option key={r} value={r}>{r.replaceAll("_", " ")}</option>)}
                         </Select>
                         <Button type="submit" variant="secondary">Save</Button>
                       </form>
-                    ) : <Badge>{m.role.replace("_", " ")}</Badge>}
+                    ) : <Badge>{m.role.replaceAll("_", " ")}</Badge>}
                   </td>
                   <td className="px-4 py-3">{m.mfa_enabled ? <Badge tone="green">On</Badge> : <Badge tone="amber">Off</Badge>}</td>
                   {manage && (
@@ -76,7 +76,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
           <ul className="divide-y divide-slate-100 text-sm">
             {pending.map((i) => (
               <li key={i.id} className="flex items-center justify-between py-2">
-                <span>{i.email} · <span className="text-slate-500">{i.role.replace("_", " ")}, expires {new Date(i.expires_at).toLocaleDateString()}</span></span>
+                <span>{i.email} · <span className="text-slate-500">{i.role.replaceAll("_", " ")}, expires {new Date(i.expires_at).toLocaleDateString()}</span></span>
                 {manage && (
                   <form action={revokeInviteAction}><input type="hidden" name="id" value={i.id} />
                     <Button type="submit" variant="ghost">Revoke</Button></form>

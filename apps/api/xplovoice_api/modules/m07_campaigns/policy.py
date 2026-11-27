@@ -28,6 +28,7 @@ from ..m04_telephony.service import live_calls, live_outbound
 from ..m08_calls import lifecycle
 from ..m08_calls.models import Call
 from ..m15_usage import billing
+from ..m19_healthcare.mode import phi_mode, policy_in_force
 from ..m22_consent.service import has_consent, is_suppressed
 from .models import PolicyDecision
 
@@ -136,6 +137,13 @@ def evaluate_outbound(
     )
     if not checks[-1].ok:
         return Decision("block", "attempts_used", checks)
+    if phi_mode(s):
+        allowed = policy_in_force(s).allow_outbound_campaigns
+        checks.append(
+            Check("healthcare_policy", allowed, "Your healthcare policy doesn't allow outbound campaign calls.")
+        )
+        if not allowed:
+            return Decision("block", "healthcare_policy", checks)
     blocked = billing.admission(s, "call")
     checks.append(Check("billing", blocked is None, blocked.message if blocked else "Billing allows calls."))
     if blocked is not None:  # spending limit, quota or an overdue invoice: wait, the person may fix it

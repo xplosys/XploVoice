@@ -15,7 +15,7 @@ from ...core.config import get_settings
 from ...core.context import Ctx, require
 from ...core.db import set_context
 from ...core.errors import ApiError, conflict, not_found
-from ...core.permissions import Perm
+from ...core.permissions import Perm, has
 from ..m03_ai import gateway
 from ..m03_ai.adapters.base import ChatMessage
 from ..m04_telephony.models import CallProviderEvent, CallStateTransition
@@ -25,6 +25,9 @@ from ..m05_agents.runtime import engine_config
 from ..m05_agents.schemas import AgentConfig
 from ..m09_tools import conversation
 from ..m15_usage import billing
+from ..m19_healthcare.mode import phi_mode
+from ..m20_phi.classify import mask_number
+from ..m23_audit import service as phi_log
 from . import dispatch, lifecycle
 from .internal import escalate, record_turn
 from .livekit import room_token
@@ -77,7 +80,20 @@ def _call_out(c: Call, a: Agent, v: AgentVersion) -> dict:
         from_number=c.from_number,
         to_number=c.to_number,
         campaign_id=c.campaign_id,
+        content_purged=c.content_purged_at is not None,
     )
+
+
+def _phi_view(ctx: Ctx) -> tuple[bool, bool]:
+    """(healthcare organisation, may this person see PHI). Outside healthcare mode everyone with calls:read may."""
+    healthcare = phi_mode(ctx.session)
+    return healthcare, (not healthcare) or has(ctx.membership.role, Perm.PHI_READ)
+
+
+def _restrict(out: dict) -> dict:
+    out["from_number"], out["to_number"] = mask_number(out["from_number"]), mask_number(out["to_number"])
+    out["phi_restricted"] = True
+    return out
 
 
 @router.post("/v1/voice/sessions", response_model=VoiceSessionOut, status_code=status.HTTP_201_CREATED)
@@ -149,7 +165,10 @@ def list_calls(
         .order_by(Call.created_at.desc())
         .limit(limit)
     ).all()
-    return [CallOut(**_call_out(c, a, v)) for c, a, v in rows]
+    healthcare, may = _phi_view(ctx)
+    if healthcare and may and rows:
+        phi_log.log(ctx, "list", "caller_number", None, purpose="calls list")
+    return [CallOut(**(_call_out(c, a, v) if may else _restrict(_call_out(c, a, v)))) for c, a, v in rows]
 
 
 def _get_call(ctx: Ctx, call_id: UUID) -> tuple[Call, Agent, AgentVersion]:
@@ -167,6 +186,19 @@ def _get_call(ctx: Ctx, call_id: UUID) -> tuple[Call, Agent, AgentVersion]:
 @router.get("/v1/calls/{call_id}", response_model=CallDetailOut)
 def read_call(call_id: UUID, ctx: Ctx = Depends(require(Perm.CALLS_READ))) -> CallDetailOut:
     c, a, v = _get_call(ctx, call_id)
+    healthcare, may = _phi_view(ctx)
+    if healthcare:
+        phi_log.log(
+            ctx,
+            "view",
+            "call_transcript",
+            str(c.id),
+            allowed=may,
+            purpose="call detail",
+            reason=None if may else "no phi:read",
+        )
+    if not may:  # the call's outline without what was said or by whom
+        return CallDetailOut(**_restrict(_call_out(c, a, v)), transcript=[], events=[])
     segs = ctx.session.scalars(
         select(TranscriptSegment).where(TranscriptSegment.call_id == c.id).order_by(TranscriptSegment.seq)
     )
@@ -297,7 +329,9 @@ async def chat_message(call_id: UUID, data: ChatIn, ctx: Ctx = Depends(require(P
             )
         )
         ctx.session.flush()
-        engine = engine_config(cfg, name, open_now=True, max_seconds_cap=get_settings().max_call_seconds)
+        engine = engine_config(
+            cfg, name, open_now=True, max_seconds_cap=get_settings().max_call_seconds, healthcare=phi_mode(ctx.session)
+        )
         msgs = [ChatMessage("system", engine["instructions"] + "\n\nThis is a typed test chat.")]
         for g in segs:
             msgs.append(ChatMessage("user" if g.speaker == "caller" else "assistant", g.text))

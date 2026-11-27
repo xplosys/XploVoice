@@ -93,3 +93,18 @@ test only:
   `XV_BILLING_BLOCK_PAST_DUE` (default on) blocks new calls while an invoice is overdue
   (`XV_BILLING_INVOICE_DUE_DAYS`, default 15).
 - **Analytics** shows calls by day in the organisation's time zone; charges appear only for owners and admins.
+
+## Healthcare Mode (Phase 8)
+
+Use synthetic data only. Never enter real patient information.
+
+- Start the API with `XV_HEALTHCARE_ENABLED=true` (default off). The organisation must be in the US and its owner
+  signed in with two-factor.
+- As the owner, open **Healthcare** and ask for Healthcare Mode. Write a policy and have another member (for example
+  an invited **privacy officer**) approve it. Set call retention on the **Retention** tab.
+- As a platform admin with two-factor, open **Admin → Healthcare**: record a BAA for each AI provider you will use
+  (for development the mock provider), mark it PHI-eligible, record the customer's BAA, run the control tests, then
+  activate. The person who asked cannot be the one who activates; the gate lists anything missing.
+- Once active, viewers and agent designers see calls without transcripts or numbers; every look at a call is in
+  **Healthcare → PHI access log**. Anyone can **Report an incident**.
+- `XV_HEALTHCARE_CONTROL_TEST_MAX_AGE_DAYS` (default 30) sets how recent the control tests must be.

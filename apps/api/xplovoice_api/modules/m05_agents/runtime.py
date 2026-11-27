@@ -66,7 +66,7 @@ def hours_summary(hours: BusinessHours) -> str:
     return f"Business hours ({hours.timezone}): " + "; ".join(parts) + "."
 
 
-def system_prompt(cfg: AgentConfig, agent_name: str) -> str:
+def system_prompt(cfg: AgentConfig, agent_name: str, *, healthcare: bool = False) -> str:
     lines = [cfg.system_prompt.strip()]
     if cfg.business_purpose.strip():
         lines.append(f"Your purpose: {cfg.business_purpose.strip()}")
@@ -93,18 +93,28 @@ def system_prompt(cfg: AgentConfig, agent_name: str) -> str:
             "When reference information is provided, answer questions from it. If it doesn't cover the question, "
             "say you don't know rather than guessing."
         )
-    if cfg.agent_type == "healthcare_admin":
+    if cfg.agent_type == "healthcare_admin" or healthcare:
         lines.append(HEALTHCARE_GUARDRAIL)
     return "\n\n".join(x for x in lines if x)
 
 
-def engine_config(cfg: AgentConfig, agent_name: str, *, open_now: bool, max_seconds_cap: int) -> dict[str, Any]:
-    """The flat settings the engine reads. Keys are stable across agent schema changes."""
+def engine_config(
+    cfg: AgentConfig,
+    agent_name: str,
+    *,
+    open_now: bool,
+    max_seconds_cap: int,
+    healthcare: bool = False,
+    privacy_notice: str = "",
+) -> dict[str, Any]:
+    """The flat settings the engine reads. Keys are stable across agent schema changes. In a healthcare
+    organisation (Phase 8) every agent gets the administrative-only guardrail, and the organisation's privacy
+    notice is spoken before the greeting."""
     esc = cfg.escalation
     escalation_message = cfg.transfer.announce if esc.action == "transfer" and cfg.transfer.enabled else esc.message
     return {
-        "instructions": system_prompt(cfg, agent_name),
-        "greeting": cfg.greeting,
+        "instructions": system_prompt(cfg, agent_name, healthcare=healthcare),
+        "greeting": f"{privacy_notice} {cfg.greeting}".strip() if privacy_notice else cfg.greeting,
         "language": cfg.language,
         "voice": cfg.ai.voice,
         "max_call_seconds": min(cfg.limits.max_call_seconds, max_seconds_cap),

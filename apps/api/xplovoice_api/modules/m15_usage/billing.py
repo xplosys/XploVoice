@@ -378,7 +378,11 @@ def _alerts(s: Session, sub: Any, history: dict[str, list[Any]]) -> None:
 # ------------------------------------------------------------------ admission
 def admission(s: Session, purpose: str) -> Block | None:
     """Whether the organisation may start something new that costs money: purpose "call" (browser, phone and
-    campaign calls, text chats) or "ai" (playground requests)."""
+    campaign calls, text chats) or "ai" (playground requests). A suspended healthcare organisation starts nothing."""
+    from ..m19_healthcare.mode import suspended
+
+    if suspended(s):
+        return Block("healthcare_suspended", "Healthcare Mode is suspended for your organisation. Contact Xplosys.")
     settings = get_settings()
     sub = open_subscription(s)
     if sub is None:

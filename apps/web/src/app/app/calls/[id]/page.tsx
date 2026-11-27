@@ -6,7 +6,7 @@ import { EXEC_TONE, STATE_TONE, label } from "@/lib/tones";
 import { ActionForm } from "@/components/forms/action-form";
 import { simulateEventAction } from "../../telephony-actions";
 import { can, getMe } from "@/lib/me";
-import { Badge, Card } from "@/components/ui";
+import { Badge, Card, Notice } from "@/components/ui";
 import { callTone } from "@/lib/utils";
 import { When } from "@/components/when";
 
@@ -51,6 +51,8 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
           {call.recoveries > 0 && <Badge tone="amber">recovered {call.recoveries}×</Badge>}
         </p>
       </div>
+      {call.phi_restricted && <Notice>This organisation is in Healthcare Mode. Your role can&apos;t see what was said or the caller&apos;s number, so they are hidden. Your view was recorded in the PHI access log.</Notice>}
+      {call.content_purged && <Notice>This call&apos;s content was removed under your retention schedule or a deletion request.</Notice>}
       {Object.keys(call.providers_used).length > 0 && (
         <Card>
           <h2 className="mb-2 font-medium">Providers and models used</h2>
@@ -64,7 +66,7 @@ export default async function CallPage({ params }: { params: Promise<{ id: strin
       )}
       <Card>
         <h2 className="mb-3 font-medium">Transcript</h2>
-        {call.transcript.length === 0 ? <p className="text-sm text-slate-600">Nothing was said on this call.</p> : (
+        {call.transcript.length === 0 ? <p className="text-sm text-slate-600">{call.phi_restricted ? "Hidden for your role." : call.content_purged ? "Removed under the retention policy." : "Nothing was said on this call."}</p> : (
           <div className="space-y-2 text-sm">
             {call.transcript.map((s) => (
               <p key={s.seq} className={s.speaker === "agent" ? "" : "text-brand-700"}>

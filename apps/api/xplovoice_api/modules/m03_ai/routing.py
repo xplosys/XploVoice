@@ -68,7 +68,16 @@ def candidates(
     """Must run inside a tenant context (RLS limits tenant routes and credentials to the caller's tenant).
     `prefer` (an agent's chosen model) moves that route to the front; the rest stay as failover. A preferred
     model that is not one of the routes is ignored, so an agent can never reach a model the tenant has not
-    routed."""
+    routed.
+
+    In a healthcare organisation (M19) every request is treated as carrying PHI, whatever the caller passed:
+    only providers with a signed, unexpired BAA on record are candidates (M21), and customer-owned keys are
+    skipped because XploVoice cannot see the customer's own agreement with that vendor."""
+    from ..m19_healthcare.mode import phi_mode
+    from ..m21_vendors.service import ai_provider_eligible
+
+    healthcare = phi_mode(session)
+    phi = phi or healthcare
     rows = session.execute(
         select(TenantRoute.model_id, TenantRoute.credential_id)
         .where(TenantRoute.kind == kind, TenantRoute.enabled.is_(True))
@@ -108,8 +117,13 @@ def candidates(
         if need_tools and not model.function_calling:
             skip("no function calling")
             continue
-        if phi and not provider.phi_eligible:
-            skip("not approved for health information (no signed BAA)")
+        if phi:
+            eligible = ai_provider_eligible(session, provider)
+            if not eligible.ok:
+                skip(eligible.reason)
+                continue
+        if credential_id and healthcare:
+            skip("customer-owned keys are not used in healthcare mode")
             continue
         if credential_id:
             cred = session.get(Credential, credential_id)
