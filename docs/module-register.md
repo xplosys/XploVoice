@@ -30,7 +30,13 @@ later phase), *planned*, *awaiting configuration* (code path exists but needs a 
 | M17 | Platform administration and audit | 1, 7 | partial | Hash-chained audit log, tenant suspend/reactivate (`modules/m17_admin`) |
 | M18 | Observability and operations | 1 | partial | Health, readiness, Prometheus metrics, OpenTelemetry hooks (`modules/m18_ops`) |
 | M22-core | Consent and do-not-call (CR-023) | 6 | done | `modules/m22_consent`: consent records, do-not-call list, opt-out on calls; recording storage awaiting configuration |
-| M19–M25 | Healthcare modules (LLD v1.3) | 8 | planned | Healthcare mode stays disabled until the activation gate evidence exists |
+| M19 | Healthcare activation and policy | 8 | done (Phase 8 scope) | `modules/m19_healthcare`: request, 11-check activation gate, four-eyes activation, versioned policies with second-person approval, suspension; admin console (ADR-0011) |
+| M20 | PHI inventory and redaction | 8 | done (Phase 8 scope) | `modules/m20_phi`: per-organisation inventory, redaction of stored text, payload minimization, number masking |
+| M21 | Vendor BAAs and PHI eligibility | 8 | done (Phase 8 scope) | `modules/m21_vendors`: append-only vendor BAA records; routing uses only eligible providers, fallback included |
+| M22-healthcare | Recording consent in Healthcare Mode | 8 | partial | `m22_consent/recordings.py`: access needs the policy, consent and phi:read, logged; recording storage awaiting configuration |
+| M23 | PHI access log and incidents | 8 | done (Phase 8 scope) | `modules/m23_audit`: append-only PHI access log; incidents, four-factor assessment, notice plan |
+| M24 | Retention, legal holds, rights requests | 8 | done (Phase 8 scope) | `modules/m24_retention`: retention purge through a guarded definer function, holds, rights requests with second-person decision, export |
+| M25 | Control tests and evidence | 8 | done (Phase 8 scope) | `modules/m25_evidence`: control tests, evidence, risk register, compliance report |
 
 ## Requirement traceability (Phase 1)
 
@@ -120,3 +126,16 @@ later phase), *planned*, *awaiting configuration* (code path exists but needs a 
 | Master prompt §22 | Invoices with tax | `billing.py::issue_invoice` | `test_phone_minutes_rated_with_included_minutes_then_invoiced_with_tax` |
 | Master prompt §22 | Payments (test provider only), verified deduplicated webhooks | `m15_usage/payments.py` | `test_test_payment_settles_through_the_signed_webhook_once`, `test_wrong_amount_in_a_webhook_fails_the_payment`, `test_test_payment_provider_is_refused_in_production` |
 | Master prompt Phase 7 | Analytics | `m16_analytics/router.py` | `test_analytics_counts_calls_outcomes_and_charges` |
+
+## Requirement traceability (Phase 8)
+
+| Requirement source | Requirement | Implementation | Test |
+|---|---|---|---|
+| LLD v1.3 M19 | Off by default; gate; four-eyes activation; versioned policy | `0008_healthcare.py`, `m19_healthcare/gate.py`, `admin.py`, `router.py` | `test_healthcare_mode_is_off_by_default_and_changes_nothing`, `test_activation_gate_and_four_eyes`, `test_gate_names_what_is_missing`, `test_policy_versions_need_a_second_person`, `test_request_needs_us_two_factor_and_synthetic_data` |
+| LLD v1.3 M20 | Redaction and minimization | `m20_phi/classify.py`, `m13_integrations/events.py` | `test_redaction_masks_identifiers_and_minimize_keeps_only_ids`, `test_audit_log_phi_log_and_webhooks_hold_no_phi` |
+| LLD v1.3 M21 | PHI only to vendors with a BAA | `m21_vendors/service.py`, `m03_ai/routing.py::candidates` | `test_phi_goes_only_to_providers_with_a_baa_in_force_including_fallback`, `test_expired_vendor_baa_is_skipped` |
+| LLD v1.3 M22 | Recording consent; administrative guardrail | `m22_consent/recordings.py`, `m05_agents/runtime.py` | `test_recording_needs_consent_a_phi_role_and_the_policy`, `test_every_agent_gets_the_guardrail_and_the_privacy_notice` |
+| LLD v1.3 M23 | Minimum necessary, PHI access log, incidents | `m08_calls/router.py::_restrict`, `m23_audit/` | `test_phi_is_withheld_without_phi_read_and_every_access_is_logged`, `test_incident_assessment_schedules_the_right_notices`, `test_notification_plan_for_large_breaches_and_business_associates` |
+| LLD v1.3 M24 | Retention, legal holds, rights requests | `purge_call_content`, `m24_retention/router.py` | `test_retention_purges_old_call_content_except_under_legal_hold`, `test_rights_requests_are_decided_by_a_second_person_exported_and_deleted` |
+| LLD v1.3 M25 | Control tests, evidence | `m25_evidence/` | `test_control_tests_evidence_and_report`, `test_a_failing_control_test_blocks_activation` |
+| LLD v1.3 | Privacy officer role; suspension | `core/permissions.py`, `m15_usage/billing.py::admission` | `test_privacy_officer_role`, `test_suspension_stops_new_calls_but_keeps_every_protection` |

@@ -29,7 +29,7 @@ approved the build to proceed on the proposal; the formal baseline document stil
 | CR-008 | Native workflows: follow-ups, holiday calendars, support tickets | M11, M13, M14 | Medium | Open |
 | CR-009 | Inbound routing + queues; outbound policy engine, suppression, dial attempts | M06, M07 | High | Implemented (ADR-0009); hold audio not played |
 | CR-010 | Worker and queue spec: heartbeats, DLQ, backpressure, regional routing | M10 | High | Partial: Redis-stream dispatch, heartbeats, lease takeover, per-worker call limit; DLQ and regional routing open |
-| CR-011 | Consent, retention, recording audit for standard tenants | M22, M24 | Medium | Partial: consent records, do-not-call, opt-out, recording notice and consent; recording storage and retention awaiting configuration |
+| CR-011 | Consent, retention, recording audit for standard tenants | M22, M24 | Medium | Partial: consent records, do-not-call, opt-out, recording notice and consent; retention, legal holds and recording access checks built for Healthcare Mode in Phase 8 (ADR-0011); recording storage awaiting configuration |
 | CR-012 | Platform-wide fallback chains and circuit breakers | M03, M04, M09 | High | Partial: AI gateway fallback and breaker (ADR-0005); engine plays a fixed message and ends cleanly (Phase 3); telephony in Phase 6 |
 | CR-013 | Concurrency, capacity and admission control | M10, M15 | High | Partial: per-tenant live-call limit and per-worker call limit; plan limits and billing admission in Phase 7 |
 | CR-014 | Per-call trace span model and monitoring catalogue | M18, M16 | Medium | Open |

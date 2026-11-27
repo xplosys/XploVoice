@@ -96,6 +96,7 @@ class RequestOut(BaseModel):
     decision_reason: str | None
     completed_at: datetime | None
     outcome: dict | None
+    logged_by_you: bool = False
 
 
 class RunOut(BaseModel):
@@ -114,6 +115,7 @@ class RetentionOut(BaseModel):
 
 def _request_out(ctx: Ctx, r: RightsRequest) -> RequestOut:
     out = RequestOut.model_validate(r, from_attributes=True)
+    out.logged_by_you = r.created_by_membership_id == ctx.membership.id
     if not has(ctx.membership.role, Perm.PHI_READ):
         out.subject_phone = r.subject_phone[:2] + "•" * max(0, len(r.subject_phone) - 6) + r.subject_phone[-4:]
     return out

@@ -56,6 +56,7 @@ class PolicyOut(BaseModel):
     created_at: datetime
     approved_by_membership_id: UUID | None
     approved_at: datetime | None
+    written_by_you: bool = False
 
 
 class ClassificationOut(BaseModel):
@@ -106,7 +107,12 @@ def overview(ctx: Ctx) -> HealthcareOut:
         policy_version_in_force=policy_in_force(ctx.session).version,
         gate=[CheckOut(**c.__dict__) for c in checks],
         gate_passed=all(c.ok for c in checks),
-        policies=[PolicyOut.model_validate(x, from_attributes=True) for x in pols],
+        policies=[
+            PolicyOut.model_validate(x, from_attributes=True).model_copy(
+                update={"written_by_you": x.created_by_membership_id == ctx.membership.id}
+            )
+            for x in pols
+        ],
         classifications=[ClassificationOut.model_validate(x, from_attributes=True) for x in cls],
     )
 

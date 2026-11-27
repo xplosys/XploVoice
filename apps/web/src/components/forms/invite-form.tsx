@@ -19,7 +19,7 @@ export function InviteForm({ roles }: { roles: string[] }) {
       <div><Label htmlFor="inv-email">Email</Label><Input id="inv-email" name="email" type="email" required /></div>
       <div><Label htmlFor="inv-role">Role</Label>
         <Select id="inv-role" name="role" defaultValue="viewer">
-          {roles.map((r) => <option key={r} value={r}>{r.replace("_", " ")}</option>)}
+          {roles.map((r) => <option key={r} value={r}>{r.replaceAll("_", " ")}</option>)}
         </Select></div>
       </div>
     </ActionForm>

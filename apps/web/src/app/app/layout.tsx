@@ -37,6 +37,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     ...(can(me, "consent:read") ? [{ href: "/app/do-not-call", label: "Do not call" }] : []),
     ...(can(me, "analytics:read") ? [{ href: "/app/analytics", label: "Analytics" }] : []),
     ...(can(me, "billing:read") ? [{ href: "/app/billing", label: "Billing" }] : []),
+    ...(can(me, "healthcare:read") ? [{ href: "/app/healthcare", label: "Healthcare" }]
+      : can(me, "incidents:report") ? [{ href: "/app/healthcare/incidents", label: "Report an incident" }] : []),
   ];
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -57,7 +59,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <header className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-3 print:hidden">
           <div className="flex min-w-0 items-center gap-3">
             <span className="truncate font-medium">{me.tenant_name}</span>
-            <Badge tone="brand">{me.role.replace("_", " ")}</Badge>
+            <Badge tone="brand">{me.role.replaceAll("_", " ")}</Badge>
           </div>
           <div className="flex items-center gap-3 text-sm">
             {me.is_platform_admin && <Link href="/admin" className="text-brand-700 underline">Platform admin</Link>}
