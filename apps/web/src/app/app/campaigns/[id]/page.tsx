@@ -53,7 +53,7 @@ export default async function CampaignPage({ params, searchParams }: {
         <p className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
           <Badge tone={CAMPAIGN_TONE[c.status]}>{c.status}</Badge>
           {c.agent_name} · from <span className="font-mono">{c.from_number}</span> · {c.window_start.slice(0, 5)}–{c.window_end.slice(0, 5)} local time, {c.days.join(", ")}
-          {c.approved_at && <> · approved <When iso={c.approved_at} /></>}
+          {c.approved_at && <> · approved <When iso={c.approved_at} />{c.self_approved && <> <Badge tone="amber">self-approved</Badge></>}</>}
         </p>
       </div>
 

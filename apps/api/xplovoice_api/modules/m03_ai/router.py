@@ -17,6 +17,7 @@ from ...core.context import Ctx, require
 from ...core.errors import ApiError, bad_request, not_found
 from ...core.permissions import Perm
 from ...core.security import decrypt_secret, encrypt_secret
+from ..m15_usage import billing
 from . import gateway
 from .adapters import adapter_for
 from .adapters.base import ChatMessage, Endpoint, LLMRequest
@@ -287,6 +288,7 @@ def check_routes(kind: Kind, language: str | None = None, ctx: Ctx = Depends(req
 # ------------------------------------------------------------------ test playground
 def _meter(ctx: Ctx, key: str | None) -> gateway.Meter:
     ratelimit.hit(f"ai-test:{ctx.tenant.id}", get_settings().ai_tenant_test_rate_per_minute)
+    billing.enforce(ctx.session, "ai")
     idem = key if key and 8 <= len(key) <= 120 else f"test-{uuid.uuid4()}"
     return gateway.Meter(
         session=ctx.session,

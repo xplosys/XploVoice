@@ -20,6 +20,7 @@ from ...core.errors import ApiError, bad_request, conflict, not_found
 from ...core.permissions import Perm, has
 from ..m01_identity.models import User
 from ..m02_tenant.models import Membership
+from ..m15_usage import billing
 from .checks import readiness
 from .models import Agent, AgentPublication, AgentTemplate, AgentVersion
 from .schemas import (
@@ -210,6 +211,13 @@ def create_agent(data: AgentCreate, ctx: Ctx = Depends(require(Perm.AGENTS_MANAG
         if not t or t.status != "active":
             raise bad_request("unknown_template", "That template does not exist")
         cfg = data.config or AgentConfig.model_validate(t.config)
+    limit = billing.plan_limit(ctx.session, "max_agents")
+    if limit is not None:
+        n = ctx.session.scalar(
+            select(func.count()).select_from(Agent).where(Agent.tenant_id == ctx.tenant.id, Agent.status != "archived")
+        )
+        if (n or 0) >= limit:
+            raise ApiError(402, "plan_limit", f"Your plan allows {limit} agents. Archive one or change plan.")
     a = Agent(
         tenant_id=ctx.tenant.id,
         name=data.name.strip(),

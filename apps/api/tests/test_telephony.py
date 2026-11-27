@@ -420,6 +420,14 @@ def contacts(client, t, c):
     return {k["phone"]: k for k in client.get(f"/v1/campaigns/{c['id']}/contacts", headers=auth(t)).json()}
 
 
+def test_sole_approver_may_approve_own_campaign_and_it_is_labelled(client, owner_engine):
+    t, a, tr, n = setup_org(client, owner_engine)
+    c = campaign(client, t, a, n)
+    add(client, t, c, [OK])
+    r = client.post(f"/v1/campaigns/{c['id']}/approve", headers=auth(t))
+    assert r.status_code == 200 and r.json()["self_approved"] is True
+
+
 def test_campaigns_need_approval_by_another_person(client, owner_engine):
     t, a, tr, n = setup_org(client, owner_engine)
     c = campaign(client, t, a, n)
@@ -431,7 +439,7 @@ def test_campaigns_need_approval_by_another_person(client, owner_engine):
     designer = invite_and_join(client, t, "agent_designer")
     assert client.post(f"/v1/campaigns/{c['id']}/approve", headers=auth(designer)).status_code == 403
     r = client.post(f"/v1/campaigns/{c['id']}/approve", headers=auth(admin))
-    assert r.status_code == 200 and r.json()["status"] == "approved"
+    assert r.status_code == 200 and r.json()["status"] == "approved" and r.json()["self_approved"] is False
     # Any change sends it back for approval.
     body = {
         k: r.json()[k] for k in ("name", "agent_id", "from_number_id", "timezone", "window_start", "window_end", "days")

@@ -20,6 +20,9 @@ EVENT_TYPES = (
     "ticket.created",
     "ticket.updated",
     "follow_up.created",
+    "billing.alert",
+    "invoice.issued",
+    "invoice.paid",
 )
 
 

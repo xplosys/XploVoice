@@ -60,6 +60,7 @@ class CampaignOut(CampaignIn):
     from_number: str
     approved_by_membership_id: UUID | None
     approved_at: datetime | None
+    self_approved: bool = False  # approved by the person who created it (allowed only when nobody else can)
     created_by_membership_id: UUID | None
     created_at: datetime
     updated_at: datetime
@@ -159,6 +160,8 @@ def _out(ctx: Ctx, c: Campaign) -> CampaignOut:
         from_number=n.e164 if n else "",
         approved_by_membership_id=c.approved_by_membership_id,
         approved_at=c.approved_at,
+        self_approved=c.approved_by_membership_id is not None
+        and c.approved_by_membership_id == c.created_by_membership_id,
         created_by_membership_id=c.created_by_membership_id,
         created_at=c.created_at,
         updated_at=c.updated_at,

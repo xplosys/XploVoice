@@ -14,6 +14,7 @@ from sqlalchemy import create_engine, text
 os.environ.setdefault("XV_ENVIRONMENT", "test")
 os.environ.setdefault("XV_WEBHOOK_DISPATCHER", "false")
 os.environ.setdefault("XV_CAMPAIGN_DIALER", "false")
+os.environ.setdefault("XV_BILLING_JOB", "false")
 os.environ.setdefault("XV_DATABASE_URL", "postgresql+psycopg://xplovoice_app:xplovoice_app@localhost:5432/xplovoice")
 os.environ.setdefault(
     "XV_MIGRATION_DATABASE_URL", "postgresql+psycopg://xplovoice_owner:xplovoice_owner@localhost:5432/xplovoice"
@@ -51,6 +52,7 @@ def clean(owner_engine):
         )
         # Restore the AI catalog to its migration seed: tests add models, prices and provider flags.
         c.execute(text("truncate ai_rate_cards, ai_models, platform_ai_routes cascade"))
+        c.execute(text("truncate billing_plans, plan_prices, fx_rates, tax_rates cascade"))
         c.execute(text(_AI_SEED.MOCK_SEED))
         c.execute(
             text(

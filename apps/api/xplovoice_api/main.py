@@ -31,7 +31,12 @@ from .modules.m12_knowledge.router import router as knowledge_router
 from .modules.m13_integrations import dispatch as webhooks
 from .modules.m13_integrations.router import router as integrations_router
 from .modules.m14_support.router import router as support_router
+from .modules.m15_usage import billing
+from .modules.m15_usage.billing_admin import router as billing_admin_router
+from .modules.m15_usage.billing_router import router as billing_router
+from .modules.m15_usage.billing_router import webhooks as payment_webhooks_router
 from .modules.m15_usage.router import router as usage_router
+from .modules.m16_analytics.router import router as analytics_router
 from .modules.m17_admin.router import router as admin_router
 from .modules.m18_ops.router import router as ops_router
 from .modules.m22_consent.router import router as consent_router
@@ -49,6 +54,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         tasks.append(asyncio.create_task(webhooks.loop()))
     if settings.campaign_dialer:  # outbound campaigns and the inbound queue (safe in several processes)
         tasks.append(asyncio.create_task(dialer.loop()))
+    if settings.billing_job:  # rating, period close and invoices (idempotent, safe in several processes)
+        tasks.append(asyncio.create_task(billing.loop()))
     yield
     for task in tasks:
         task.cancel()
@@ -116,6 +123,10 @@ def create_app() -> FastAPI:
         carrier_webhooks_router,
         campaigns_router,
         consent_router,
+        billing_router,
+        billing_admin_router,
+        payment_webhooks_router,
+        analytics_router,
     ):
         app.include_router(r)
     FastAPIInstrumentor.instrument_app(app, excluded_urls="healthz,readyz,metrics")

@@ -24,6 +24,7 @@ from ..m05_agents.router import get_agent, get_version
 from ..m05_agents.runtime import engine_config
 from ..m05_agents.schemas import AgentConfig
 from ..m09_tools import conversation
+from ..m15_usage import billing
 from . import dispatch, lifecycle
 from .internal import escalate, record_turn
 from .livekit import room_token
@@ -88,13 +89,14 @@ def start_browser_call(data: VoiceSessionIn, ctx: Ctx = Depends(require(Perm.CAL
     if data.version_id:
         version = get_version(ctx, agent, data.version_id)
     cfg = AgentConfig.model_validate(version.config)
+    billing.enforce(ctx.session, "call")
     ctx.session.execute(STALE_SQL, {"t": ctx.tenant.id})
     live = ctx.session.scalar(
         select(func.count())
         .select_from(Call)
         .where(Call.tenant_id == ctx.tenant.id, Call.status.not_in(lifecycle.TERMINAL), Call.channel != "chat")
     )
-    if (live or 0) >= s.max_concurrent_calls_per_tenant:
+    if (live or 0) >= billing.max_concurrent_calls(ctx.session):
         raise ApiError(429, "too_many_calls", "Your organisation already has the maximum number of live calls")
     max_seconds = min(cfg.limits.max_call_seconds, s.max_call_seconds)
     call = Call(
@@ -237,6 +239,7 @@ def start_chat(agent_id: UUID, data: ChatStartIn, ctx: Ctx = Depends(require(Per
     if data.version_id:
         version = get_version(ctx, agent, data.version_id)
     cfg = AgentConfig.model_validate(version.config)
+    billing.enforce(ctx.session, "call")
     ctx.session.execute(STALE_CHATS, {"t": ctx.tenant.id})
     call = Call(
         tenant_id=ctx.tenant.id,

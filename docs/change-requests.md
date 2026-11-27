@@ -31,7 +31,7 @@ approved the build to proceed on the proposal; the formal baseline document stil
 | CR-010 | Worker and queue spec: heartbeats, DLQ, backpressure, regional routing | M10 | High | Partial: Redis-stream dispatch, heartbeats, lease takeover, per-worker call limit; DLQ and regional routing open |
 | CR-011 | Consent, retention, recording audit for standard tenants | M22, M24 | Medium | Partial: consent records, do-not-call, opt-out, recording notice and consent; recording storage and retention awaiting configuration |
 | CR-012 | Platform-wide fallback chains and circuit breakers | M03, M04, M09 | High | Partial: AI gateway fallback and breaker (ADR-0005); engine plays a fixed message and ends cleanly (Phase 3); telephony in Phase 6 |
-| CR-013 | Concurrency, capacity and admission control | M10, M15 | High | Partial: per-tenant live-call limit and per-worker call limit |
+| CR-013 | Concurrency, capacity and admission control | M10, M15 | High | Partial: per-tenant live-call limit and per-worker call limit; plan limits and billing admission in Phase 7 |
 | CR-014 | Per-call trace span model and monitoring catalogue | M18, M16 | Medium | Open |
 | CR-015 | Core acceptance test catalogue (VX-xxx) | All | High | Open |
 | CR-016 | Hinglish and country/language registry | M02, M03 | Medium | Partial: registry in `m02_tenant/regional.py` lists `hi-Latn-IN` |
@@ -40,7 +40,7 @@ approved the build to proceed on the proposal; the formal baseline document stil
 | CR-019 | Ten agent templates | M05 | Low | Implemented: starting configurations written by XploVoice (no document details them), seeded by migration 0004, every field editable; healthcare template carries a non-editable administrative-only guardrail |
 | CR-020 | KB malware scanning, document versioning, retrieval audit | M12 | Medium | Partial: scanning before storage (ClamAV or development-only built-in check) and retrieval events per turn (`kb.retrieved`, ids only); document versioning open |
 | CR-021 | Integration framework (OAuth, sync logs, retries) | M13 | Medium | Partial: event outbox, signed webhooks, retries, delivery log; OAuth connectors awaiting configuration |
-| CR-022 | Subscriptions, PAYG, invoices, FX, cost and charge ledgers | M15 | Medium | Partial: usage events and provider cost ledger; charging in Phase 7 |
+| CR-022 | Subscriptions, PAYG, invoices, FX, cost and charge ledgers | M15 | Medium | Implemented (Phase 7): plans, subscriptions, pay-as-you-go, charge ledger, invoices, FX for cost comparison, tax; payment gateway awaiting configuration |
 | CR-023 | Resolve M07/M22 cycle | M07, M22 | High | Implemented: M22-core (consent, do-not-call) built before M07 |
 | CR-024 | Public marketing site pages | Web | Low | Implemented (content makes no compliance claims) |
 | CR-025 | Password change must end sessions in every tenant, not only the current one | M01 | High | Implemented: `revoke_my_sessions` definer function, test `test_password_change_revokes_sessions_in_every_org` |

@@ -27,6 +27,7 @@ from ..m04_telephony.models import DestinationPolicy, TelephonyUsage
 from ..m04_telephony.service import live_calls, live_outbound
 from ..m08_calls import lifecycle
 from ..m08_calls.models import Call
+from ..m15_usage import billing
 from ..m22_consent.service import has_consent, is_suppressed
 from .models import PolicyDecision
 
@@ -135,13 +136,16 @@ def evaluate_outbound(
     )
     if not checks[-1].ok:
         return Decision("block", "attempts_used", checks)
+    blocked = billing.admission(s, "call")
+    checks.append(Check("billing", blocked is None, blocked.message if blocked else "Billing allows calls."))
+    if blocked is not None:  # spending limit, quota or an overdue invoice: wait, the person may fix it
+        return Decision("defer", "billing", checks, now + timedelta(minutes=30))
     open_now = window_open(campaign, contact.phone, contact.timezone, now)
     checks.append(Check("calling_window", open_now, "Outside the calling window in the person's local time."))
     if not open_now:
         return Decision("defer", "calling_window", checks, next_window(campaign, contact.phone, contact.timezone, now))
-    settings = get_settings()
     org_ok = live_outbound(s, campaign.tenant_id) < policy.max_concurrent_outbound and (
-        live_calls(s, campaign.tenant_id) < settings.max_concurrent_calls_per_tenant
+        live_calls(s, campaign.tenant_id) < billing.max_concurrent_calls(s)
     )
     checks.append(Check("organisation_concurrency", org_ok, "Your organisation's call limit is reached."))
     if not org_ok:
