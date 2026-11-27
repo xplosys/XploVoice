@@ -111,6 +111,21 @@ def register(session: Session, data: RegisterIn, meta: RequestMeta) -> TokenOut:
         correlation_id=meta.correlation_id,
         metadata={"country": profile.code},
     )
+    from ..m15_usage import billing  # a new organisation starts on the platform's default plan, when one is set
+
+    plan = billing.default_plan_for(session, profile.currency)
+    if plan is not None:
+        billing.subscribe(session, plan, source="default_plan", membership_id=membership.id)
+        audit.record(
+            session,
+            action="subscription.started",
+            result="success",
+            tenant_id=tenant_id,
+            actor_kind="service",
+            resource_type="plan",
+            resource_id=str(plan["id"]),
+            metadata={"plan": plan["code"], "source": "default_plan"},
+        )
     # Email verification delivery is "awaiting configuration" until an email provider is connected (section N).
     return issue_session(session, user=user, membership=membership, mfa=False)
 

@@ -15,13 +15,14 @@ from sqlalchemy.exc import IntegrityError
 
 from ...core.config import get_settings
 from ...core.context import Ctx, require
-from ...core.errors import bad_request, conflict, not_found
+from ...core.errors import ApiError, bad_request, conflict, not_found
 from ...core.permissions import Perm
 from ...core.security import encrypt_secret
 from ..m05_agents.models import Agent
 from ..m06_inbound.models import CallQueue, InboundRoute
 from ..m06_inbound.service import DEFAULT_FALLBACK, route_inbound
 from ..m08_calls.models import Call
+from ..m15_usage import billing
 from . import service as tel
 from .adapters import simulated
 from .models import PhoneNumber, SipTrunk, TelephonyProvider
@@ -305,6 +306,11 @@ async def add_number(data: NumberIn, ctx: Ctx = Depends(require(Perm.TELEPHONY_M
         e164, country = tel.e164(data.number, ctx.tenant.country_code)
     except tel.TelephonyError as e:
         raise bad_request(e.code, e.message) from None
+    limit = billing.plan_limit(ctx.session, "max_phone_numbers")
+    if limit is not None:
+        held = ctx.session.scalar(select(func.count()).select_from(PhoneNumber).where(PhoneNumber.status == "active"))
+        if (held or 0) >= limit:
+            raise ApiError(402, "plan_limit", f"Your plan allows {limit} phone numbers. Release one or change plan.")
     n = PhoneNumber(
         tenant_id=ctx.tenant.id,
         e164=e164,

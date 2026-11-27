@@ -31,6 +31,7 @@ from ..m05_agents.router import production_version
 from ..m05_agents.schemas import AgentConfig
 from ..m08_calls import dispatch, lifecycle
 from ..m08_calls.models import Call
+from ..m15_usage import billing
 from .models import CallQueue, InboundRoute
 
 log = logging.getLogger("xplovoice.inbound")
@@ -63,7 +64,7 @@ def _route_number(dialled: str) -> tuple[UUID, UUID] | None:
 
 
 def _capacity(s, tenant_id: UUID) -> bool:  # type: ignore[no-untyped-def]
-    return tel.live_calls(s, tenant_id) < get_settings().max_concurrent_calls_per_tenant
+    return tel.live_calls(s, tenant_id) < billing.max_concurrent_calls(s)
 
 
 def _to_agent(call: Call) -> None:
@@ -150,6 +151,11 @@ def _create(
             lifecycle.enter(call, "cancelled", source="queue", reason="telephony_disabled")
             nxt.action = "hangup"
             return Routed("hangup", tenant_id, call.id, "telephony_disabled"), nxt
+        blocked = billing.admission(s, "call")
+        if blocked is not None:  # spending limit, quota or overdue invoice: no agent (it would cost money)
+            lifecycle.enter(call, "cancelled", source="queue", reason=f"billing_{blocked.code}")
+            nxt.action = "hangup"
+            return Routed("hangup", tenant_id, call.id, f"billing_{blocked.code}"), nxt
         if production_version(s, agent) is None:
             nxt.action = _fallback(call, route, "unavailable")
             return Routed("fallback" if nxt.action == "dispatch" else "hangup", tenant_id, call.id, "unavailable"), nxt

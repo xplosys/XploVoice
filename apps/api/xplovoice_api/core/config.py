@@ -73,6 +73,15 @@ class Settings(BaseSettings):
     carrier_webhook_tolerance_seconds: int = 300
     ring_timeout_seconds: int = 30
 
+    # Phase 7 billing. Without a plan an organisation is unbilled; set `billing_require_plan` to refuse calls until
+    # one is chosen. The billing job (rating, period close, invoices) runs inside each API process; tests drive it.
+    # The test payment provider exists in development and test only and never moves money.
+    billing_job: bool = True
+    billing_require_plan: bool = False
+    billing_block_past_due: bool = True
+    billing_invoice_due_days: int = 15
+    test_payment_secret: str = Field(default="dev-only-test-payment-secret", min_length=16)
+
     @property
     def is_production_like(self) -> bool:
         return self.environment in ("staging", "production")

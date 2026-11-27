@@ -40,6 +40,9 @@ class Perm(StrEnum):
     CAMPAIGNS_APPROVE = "campaigns:approve"  # a second person approves a campaign before it can dial
     CONSENT_READ = "consent:read"  # consent records and the do-not-call list
     CONSENT_MANAGE = "consent:manage"  # record consent, add to the do-not-call list (removal needs approve)
+    # Phase 7
+    BILLING_READ = "billing:read"  # plan, charges, invoices, spending limit (BILLING_MANAGE: change them, pay)
+    ANALYTICS_READ = "analytics:read"
 
 
 ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
@@ -63,6 +66,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
             Perm.CAMPAIGNS_READ,
             Perm.CAMPAIGNS_MANAGE,
             Perm.CONSENT_READ,
+            Perm.ANALYTICS_READ,
         }
     ),
     # Front-office staff: work the appointments, leads, follow-ups and tickets the agents create.
@@ -83,6 +87,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
             Perm.CAMPAIGNS_READ,
             Perm.CONSENT_READ,
             Perm.CONSENT_MANAGE,
+            Perm.ANALYTICS_READ,
         }
     ),
     "viewer": frozenset(
@@ -96,6 +101,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
             Perm.SUPPORT_READ,
             Perm.TELEPHONY_READ,
             Perm.CAMPAIGNS_READ,
+            Perm.ANALYTICS_READ,
         }
     ),
 }
