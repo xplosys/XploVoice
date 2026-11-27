@@ -1,4 +1,5 @@
 // XploVoice | Copyright (c) 2026 Xplosys. All rights reserved. | Confidential - Proprietary to Xplosys
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { fmtQty } from "@/lib/utils";
 import { api, type UsageEvent, type UsageRow } from "@/lib/api";
@@ -17,7 +18,7 @@ export default async function UsagePage() {
   return (
     <div className="space-y-6">
       <div><h1 className="text-2xl font-semibold">Usage</h1>
-        <p className="text-sm text-slate-600">What each provider actually consumed, in its own units, over the last 30 days. Provider cost is shown at the price in force at the time; it is not your invoice. Plans and invoices arrive in Phase 7.</p></div>
+        <p className="text-sm text-slate-600">What each provider actually consumed, in its own units, over the last 30 days. Provider cost is shown at the price in force at the time; it is not your invoice. Your charges and invoices are on the <Link className="underline" href="/app/billing">Billing</Link> page.</p></div>
       <Card className="overflow-x-auto p-0">
         <table className="w-full text-left text-sm">
           <thead className="border-b border-slate-200 text-slate-500"><tr>

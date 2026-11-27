@@ -35,7 +35,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     ...(can(me, "telephony:read") ? [{ href: "/app/numbers", label: "Phone numbers" }] : []),
     ...(can(me, "campaigns:read") ? [{ href: "/app/campaigns", label: "Campaigns" }] : []),
     ...(can(me, "consent:read") ? [{ href: "/app/do-not-call", label: "Do not call" }] : []),
-    { href: "/app/billing", label: "Billing", phase: 7 },
+    ...(can(me, "analytics:read") ? [{ href: "/app/analytics", label: "Analytics" }] : []),
+    ...(can(me, "billing:read") ? [{ href: "/app/billing", label: "Billing" }] : []),
   ];
   return (
     <div className="flex min-h-screen bg-slate-50">

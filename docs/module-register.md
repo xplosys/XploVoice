@@ -25,8 +25,8 @@ later phase), *planned*, *awaiting configuration* (code path exists but needs a 
 | M12 | Knowledge base and retrieval | 5 | done (Phase 5 scope) | `modules/m12_knowledge`: scanned uploads, text extraction, chunking, full-text retrieval; embeddings awaiting configuration |
 | M13 | Integrations | 5 | partial | `modules/m13_integrations`: event outbox, signed webhooks with retries; CRM and calendar connectors awaiting configuration |
 | M14 | Support tickets and notifications | 5 | partial | `modules/m14_support`: tickets, comments, escalation tickets, approved templates; SMS and email delivery awaiting configuration |
-| M15 | Usage metering, billing, plans | 2, 7 | partial | `modules/m15_usage`: append-only usage events in provider units, provider cost ledger, usage summary. Plans, invoices and charging in Phase 7 |
-| M16 | Analytics and reporting | 7 | planned | |
+| M15 | Usage metering, billing, plans | 2, 7 | done (Phase 7 scope) | `modules/m15_usage`: usage events and provider cost (Phase 2); plans with dated prices, subscriptions, trials, rating into an append-only charge ledger, included use, quotas, spending limits and alerts, invoices with tax, test payment provider (ADR-0010). Payment gateway awaiting configuration |
+| M16 | Analytics and reporting | 7 | done (Phase 7 scope) | `modules/m16_analytics`: calls, talk time, handled by the agent, transfers, agents, channels, end reasons and outcomes by day in the organisation's time zone; charges for billing roles |
 | M17 | Platform administration and audit | 1, 7 | partial | Hash-chained audit log, tenant suspend/reactivate (`modules/m17_admin`) |
 | M18 | Observability and operations | 1 | partial | Health, readiness, Prometheus metrics, OpenTelemetry hooks (`modules/m18_ops`) |
 | M22-core | Consent and do-not-call (CR-023) | 6 | done | `modules/m22_consent`: consent records, do-not-call list, opt-out on calls; recording storage awaiting configuration |
@@ -107,3 +107,16 @@ later phase), *planned*, *awaiting configuration* (code path exists but needs a 
 | Addendum D | Transfer with destination checks | `m08_calls/internal.py::transfer` | `test_transfer_success_failure_and_destination_rules`, `test_transfer_success_ends_the_agent_leg`, `test_failed_transfer_comes_back_and_takes_a_message` |
 | Addendum D | Billing pulses | `m04_telephony/service.py::finalize` | `test_usage_is_billed_in_carrier_pulses` |
 | Addendum D | Keypad tones (DTMF) | `xplovoice_engine/session.py`, `xplovoice_worker/livekit_channel.py` | `test_keypad_digits_become_a_typed_reply_and_zero_asks_for_a_person` |
+
+## Requirement traceability (Phase 7)
+
+| Requirement source | Requirement | Implementation | Test |
+|---|---|---|---|
+| Master prompt §22, CR-022 | Plans, dated prices, no seeded prices or vendors | `0007_billing.py`, `m15_usage/billing_admin.py` | `test_no_plans_or_prices_are_seeded_and_only_platform_admins_write_the_catalog`, `test_plan_activation_needs_a_fee_and_prices_are_append_only` |
+| Master prompt §22 | INR and USD; provider cost kept apart from tenant charges | `billing.py::rate`, `billing_admin.py::overview` | `test_phone_minutes_rated_with_included_minutes_then_invoiced_with_tax`, `test_admin_assigns_credits_voids_and_sees_cost_next_to_charges` |
+| Master prompt §22 | Idempotent billing events, auditable ledger | `charge_ledger` (append-only, unique source key) | `test_rating_is_idempotent_keeps_the_price_in_force_and_skips_customer_keys`, `test_billing_permissions_isolation_and_append_only_ledger` |
+| Master prompt §22 | Subscriptions, trials, pay-as-you-go, plan changes | `billing.py::subscribe`, `close_due` | `test_trial_waives_the_fee_and_ends_into_a_paid_period`, `test_plan_change_and_cancellation_apply_when_the_period_ends`, `test_default_plan_on_registration` |
+| Master prompt §22, CR-013 | Quotas, spending limits, cost alerts, plan limits | `billing.py::admission`, `_alerts` | `test_spending_limit_alerts_once_and_hard_limit_blocks_new_calls`, `test_quota_blocks_inbound_and_defers_campaign_calls`, `test_plan_limits_on_agents_numbers_and_concurrent_calls`, `test_overdue_invoice_blocks_new_calls_until_paid` |
+| Master prompt §22 | Invoices with tax | `billing.py::issue_invoice` | `test_phone_minutes_rated_with_included_minutes_then_invoiced_with_tax` |
+| Master prompt §22 | Payments (test provider only), verified deduplicated webhooks | `m15_usage/payments.py` | `test_test_payment_settles_through_the_signed_webhook_once`, `test_wrong_amount_in_a_webhook_fails_the_payment`, `test_test_payment_provider_is_refused_in_production` |
+| Master prompt Phase 7 | Analytics | `m16_analytics/router.py` | `test_analytics_counts_calls_outcomes_and_charges` |

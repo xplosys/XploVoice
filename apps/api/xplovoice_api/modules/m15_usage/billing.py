@@ -485,6 +485,7 @@ def issue_invoice(s: Session, sub: Any) -> UUID | None:
             "select entry_type, meter, unit_price, min(description) as description, min(reason) as reason, "
             "sum(quantity) as q, sum(included_applied) as inc, sum(amount) as amt from charge_ledger "
             "where subscription_id = :s and period_start = :ps "
+            "and not (entry_type = 'usage' and plan_price_id is null) "  # use the plan doesn't charge for stays off
             "group by entry_type, meter, unit_price, case when entry_type in ('credit', 'adjustment') then id end"
         ),
         {"s": sub["id"], "ps": sub["current_period_start"]},

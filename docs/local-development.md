@@ -78,3 +78,18 @@ test only:
   LiveKit SIP address.
 - Kill switches: the organisation's "Pause all phone calls" on Phone numbers, and `XV_TELEPHONY_ENABLED=false` for
   the whole platform.
+
+## Billing and analytics (Phase 7)
+
+- No plans or prices are built in. As a platform admin, open **Admin → Billing**, add a tax rate and FX rate if you
+  want them, create a plan with a fee and per-use prices, then activate it (and mark it default for new
+  organisations if you like). Assign it to an organisation from the Organisations table.
+- The billing job rates new use, closes ended periods and issues invoices inside the API every 5 minutes
+  (`XV_BILLING_JOB=true`, default; tests turn it off). "Run billing now" and "Close the period now" do it at once.
+- Pay invoices with the **test payment provider** (development only, refused in staging and production): pick
+  "Payment succeeds" or "Payment declines" on the invoice. It signs its own webhook (`XV_TEST_PAYMENT_SECRET`) and
+  settles through `POST /v1/webhooks/payments/test`. No money moves. The real gateway is awaiting configuration.
+- `XV_BILLING_REQUIRE_PLAN=true` blocks calls for organisations without a plan (default off);
+  `XV_BILLING_BLOCK_PAST_DUE` (default on) blocks new calls while an invoice is overdue
+  (`XV_BILLING_INVOICE_DUE_DAYS`, default 15).
+- **Analytics** shows calls by day in the organisation's time zone; charges appear only for owners and admins.
