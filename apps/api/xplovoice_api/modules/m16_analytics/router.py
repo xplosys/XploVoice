@@ -83,7 +83,6 @@ def overview(ctx: Ctx = Depends(require(Perm.ANALYTICS_READ)), days: int = Query
     tz = ctx.tenant.timezone
     since = datetime.now(UTC) - timedelta(days=days)
     p = {"since": since, "tz": tz}
-    base = "from calls c where c.tenant_id = app_tenant_id() and c.created_at >= :since and c.channel <> 'chat'"
     t = s.execute(
         text(
             "select count(*) as calls, count(*) filter (where c.state = 'completed') as completed, "
@@ -94,7 +93,9 @@ def overview(ctx: Ctx = Depends(require(Perm.ANALYTICS_READ)), days: int = Query
             "count(*) filter (where c.end_reason = 'transferred') as transferred, "
             "count(*) filter (where c.end_reason = 'escalated') as escalated, "
             "count(*) filter (where c.state = 'completed' and coalesce(c.end_reason, '') not in "
-            "('transferred', 'escalated')) as contained " + base
+            "('transferred', 'escalated')) as contained "
+            "from calls c where c.tenant_id = app_tenant_id() and c.created_at >= :since "
+            "and c.channel <> 'chat'"
         ),
         p,
     ).one()
@@ -136,7 +137,10 @@ def overview(ctx: Ctx = Depends(require(Perm.ANALYTICS_READ)), days: int = Query
                 "select to_char(timezone(:tz, c.created_at), 'YYYY-MM-DD') as day, count(*) as calls, "
                 "count(*) filter (where c.state = 'completed') as completed, "
                 "count(*) filter (where c.state in ('failed', 'busy', 'no_answer', 'cancelled', 'disconnected')) "
-                "as failed, coalesce(sum(c.duration_seconds), 0) / 60 as minutes " + base + " group by 1 order by 1"
+                "as failed, coalesce(sum(c.duration_seconds), 0) / 60 as minutes "
+                "from calls c where c.tenant_id = app_tenant_id() and c.created_at >= :since "
+                "and c.channel <> 'chat'"
+                " group by 1 order by 1"
             ),
             p,
         ).all()
@@ -165,10 +169,16 @@ def overview(ctx: Ctx = Depends(require(Perm.ANALYTICS_READ)), days: int = Query
         return [Count(key=r.k or "unknown", count=r.n) for r in s.execute(text(sql), p).all()]
 
     by_channel = counts(
-        "select c.channel || ':' || c.direction as k, count(*) as n " + base + " group by 1 order by 2 desc"
+        "select c.channel || ':' || c.direction as k, count(*) as n "
+        "from calls c where c.tenant_id = app_tenant_id() and c.created_at >= :since "
+        "and c.channel <> 'chat'"
+        " group by 1 order by 2 desc"
     )
     end_reasons = counts(
-        "select c.end_reason as k, count(*) as n " + base + " and c.ended_at is not null group by 1 order by 2 desc"
+        "select c.end_reason as k, count(*) as n "
+        "from calls c where c.tenant_id = app_tenant_id() and c.created_at >= :since "
+        "and c.channel <> 'chat'"
+        " and c.ended_at is not null group by 1 order by 2 desc"
     )
 
     def n(sql: str) -> int:
