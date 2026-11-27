@@ -74,6 +74,7 @@ export default async function BillingPage() {
             {manage && (sub.cancel_at_period_end
               ? <ActionForm action={resumePlanAction} submit="Keep my plan" variant="secondary" />
               : <details><summary className="cursor-pointer text-sm text-red-700 underline">Cancel plan</summary>
+                  {sub.pending_plan && <p className="mt-2 text-sm text-slate-600">This also drops the change to {sub.pending_plan.name}. &quot;Keep my plan&quot; keeps {sub.plan.name}; choose {sub.pending_plan.name} again to switch.</p>}
                   <ActionForm action={cancelPlanAction} submit="End my plan at the end of this period" variant="danger" className="mt-2 space-y-2" /></details>)}
           </div>
         ) : (

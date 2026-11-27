@@ -314,7 +314,9 @@ def test_spending_limit_alerts_once_and_hard_limit_blocks_new_calls(client, owne
     )
     assert hook.status_code in (200, 201), hook.text
     r = client.put(
-        "/v1/billing/settings", headers=auth(t), json={"spend_limit": "1000", "alert_percents": [50, 80, 100]}
+        "/v1/billing/settings",
+        headers=auth(t),
+        json={"spend_limit": "1000", "hard_limit": True, "alert_percents": [50, 80, 100]},
     )
     assert r.status_code == 200
     ov = overview(client, t)

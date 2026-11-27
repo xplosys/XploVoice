@@ -40,7 +40,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   ];
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white p-4 md:flex">
+      <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-200 bg-white p-4 md:flex print:hidden">
         <div className="mb-6"><Logo href="/app" /></div>
         {tenants.length > 1 && (
           <form action={switchTenantAction} className="mb-4 flex gap-2">
@@ -54,7 +54,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <div className="mt-auto pt-6"><Copyright /></div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-3">
+        <header className="flex items-center justify-between gap-4 border-b border-slate-200 bg-white px-6 py-3 print:hidden">
           <div className="flex min-w-0 items-center gap-3">
             <span className="truncate font-medium">{me.tenant_name}</span>
             <Badge tone="brand">{me.role.replace("_", " ")}</Badge>

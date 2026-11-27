@@ -73,7 +73,7 @@ class SubscriptionOut(BaseModel):
 
 class SettingsOut(BaseModel):
     spend_limit: Decimal | None = None
-    hard_limit: bool = True
+    hard_limit: bool = False
     alert_percents: list[int] = [50, 80, 100]
     billing_email: str | None = None
     legal_name: str | None = None
@@ -328,7 +328,7 @@ def resume(ctx: Ctx = Depends(require(Perm.BILLING_MANAGE))) -> SubscriptionOut:
 
 class SettingsIn(BaseModel):
     spend_limit: Decimal | None = Field(default=None, gt=0, max_digits=16, decimal_places=2)
-    hard_limit: bool = True
+    hard_limit: bool = False
     alert_percents: list[int] = Field(default=[50, 80, 100], max_length=6)
     billing_email: EmailStr | None = None
     legal_name: str | None = Field(default=None, max_length=160)

@@ -152,7 +152,7 @@ create unique index subscriptions_one_open on subscriptions (tenant_id) where en
 create table billing_settings (
   tenant_id uuid primary key references tenants(id) on delete cascade,
   spend_limit numeric(18, 2) check (spend_limit is null or spend_limit > 0),
-  hard_limit boolean not null default true,
+  hard_limit boolean not null default false,
   alert_percents integer[] not null default '{{50, 80, 100}}'
     check (alert_percents <@ array[25, 50, 75, 80, 90, 100]::integer[]),
   billing_email text check (billing_email is null or billing_email ~ '^[^@\s]+@[^@\s]+\.[^@\s]+$'),
