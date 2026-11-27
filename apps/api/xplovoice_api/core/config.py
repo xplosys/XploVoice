@@ -82,6 +82,12 @@ class Settings(BaseSettings):
     billing_invoice_due_days: int = 15
     test_payment_secret: str = Field(default="dev-only-test-payment-secret", min_length=16)
 
+    # Phase 8 Healthcare Mode. Off by default: no organisation can be activated until the platform turns it on,
+    # and the activation gate passes. Control-test evidence records `commit_sha`.
+    healthcare_enabled: bool = False
+    healthcare_control_test_max_age_days: int = 30
+    commit_sha: str = "unknown"
+
     @property
     def is_production_like(self) -> bool:
         return self.environment in ("staging", "production")

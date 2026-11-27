@@ -53,6 +53,7 @@ def clean(owner_engine):
         # Restore the AI catalog to its migration seed: tests add models, prices and provider flags.
         c.execute(text("truncate ai_rate_cards, ai_models, platform_ai_routes cascade"))
         c.execute(text("truncate billing_plans, plan_prices, fx_rates, tax_rates cascade"))
+        c.execute(text("truncate vendor_compliance_records, compliance_evidence cascade"))
         c.execute(text(_AI_SEED.MOCK_SEED))
         c.execute(
             text(

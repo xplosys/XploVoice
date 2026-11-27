@@ -1,6 +1,9 @@
 # XploVoice | Copyright (c) 2026 Xplosys. All rights reserved. | Confidential - Proprietary to Xplosys
 """Role-based permissions (RBAC). Roles follow the HLD personas; checks happen in the API, never only in the UI.
-Healthcare roles (HLD v1.3 section 6) are added with M19 in Phase 8."""
+Phase 8 adds the privacy officer (HLD v1.3 section 6): runs healthcare compliance, reads the PHI access log, works
+incidents and patient rights requests, but cannot build agents, manage members or change billing.
+In an organisation with healthcare mode on, PHI (transcripts, callers' numbers, rights-request exports) needs
+phi:read, and every such access is logged."""
 
 from enum import StrEnum
 
@@ -43,6 +46,15 @@ class Perm(StrEnum):
     # Phase 7
     BILLING_READ = "billing:read"  # plan, charges, invoices, spending limit (BILLING_MANAGE: change them, pay)
     ANALYTICS_READ = "analytics:read"
+    # Phase 8 healthcare (M19-M25)
+    HEALTHCARE_READ = "healthcare:read"  # status, activation gate, policy, PHI inventory, vendor eligibility
+    HEALTHCARE_MANAGE = "healthcare:manage"  # request healthcare mode, write and approve policy versions
+    PHI_READ = "phi:read"  # transcripts and callers' numbers in a healthcare organisation (every access logged)
+    PHI_AUDIT_READ = "phi_audit:read"
+    INCIDENTS_REPORT = "incidents:report"  # anyone can report a suspected incident
+    INCIDENTS_MANAGE = "incidents:manage"  # assess, record notifications, close
+    RETENTION_MANAGE = "retention:manage"  # retention schedules, legal holds, rights requests, retention runs
+    EVIDENCE_MANAGE = "evidence:manage"  # compliance evidence and the risk register
 
 
 ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
@@ -67,6 +79,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
             Perm.CAMPAIGNS_MANAGE,
             Perm.CONSENT_READ,
             Perm.ANALYTICS_READ,
+            Perm.INCIDENTS_REPORT,
         }
     ),
     # Front-office staff: work the appointments, leads, follow-ups and tickets the agents create.
@@ -88,6 +101,8 @@ ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
             Perm.CONSENT_READ,
             Perm.CONSENT_MANAGE,
             Perm.ANALYTICS_READ,
+            Perm.PHI_READ,
+            Perm.INCIDENTS_REPORT,
         }
     ),
     "viewer": frozenset(
@@ -102,12 +117,38 @@ ROLE_PERMISSIONS: dict[str, frozenset[Perm]] = {
             Perm.TELEPHONY_READ,
             Perm.CAMPAIGNS_READ,
             Perm.ANALYTICS_READ,
+            Perm.INCIDENTS_REPORT,
+        }
+    ),
+    "privacy_officer": frozenset(
+        {
+            Perm.TENANT_READ,
+            Perm.MEMBERS_READ,
+            Perm.AUDIT_READ,
+            Perm.AGENTS_READ,
+            Perm.CALLS_READ,
+            Perm.AI_READ,
+            Perm.KNOWLEDGE_READ,
+            Perm.WORKFLOWS_READ,
+            Perm.SUPPORT_READ,
+            Perm.TELEPHONY_READ,
+            Perm.CAMPAIGNS_READ,
+            Perm.CONSENT_READ,
+            Perm.ANALYTICS_READ,
+            Perm.HEALTHCARE_READ,
+            Perm.HEALTHCARE_MANAGE,
+            Perm.PHI_READ,
+            Perm.PHI_AUDIT_READ,
+            Perm.INCIDENTS_REPORT,
+            Perm.INCIDENTS_MANAGE,
+            Perm.RETENTION_MANAGE,
+            Perm.EVIDENCE_MANAGE,
         }
     ),
 }
 
 ROLES = tuple(ROLE_PERMISSIONS)
-ROLE_RANK = {"viewer": 0, "operator": 1, "agent_designer": 2, "admin": 3, "owner": 4}
+ROLE_RANK = {"viewer": 0, "operator": 1, "agent_designer": 2, "privacy_officer": 2, "admin": 3, "owner": 4}
 
 
 def has(role: str, perm: Perm) -> bool:

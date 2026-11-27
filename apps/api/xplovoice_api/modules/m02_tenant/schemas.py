@@ -6,8 +6,8 @@ from uuid import UUID
 import phonenumbers
 from pydantic import BaseModel, EmailStr, Field, HttpUrl, field_validator
 
-InviteRole = Literal["admin", "agent_designer", "operator", "viewer"]
-AnyRole = Literal["owner", "admin", "agent_designer", "operator", "viewer"]
+InviteRole = Literal["admin", "agent_designer", "operator", "viewer", "privacy_officer"]
+AnyRole = Literal["owner", "admin", "agent_designer", "operator", "viewer", "privacy_officer"]
 
 
 class TenantOut(BaseModel):

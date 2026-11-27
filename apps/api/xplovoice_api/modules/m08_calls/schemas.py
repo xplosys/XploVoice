@@ -67,6 +67,9 @@ class CallOut(BaseModel):
     from_number: str | None = None
     to_number: str | None = None
     campaign_id: UUID | None = None
+    # Phase 8: in a healthcare organisation, PHI is withheld from roles without phi:read
+    phi_restricted: bool = False
+    content_purged: bool = False
 
 
 class SegmentOut(BaseModel):

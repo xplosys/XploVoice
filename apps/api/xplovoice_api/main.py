@@ -39,7 +39,14 @@ from .modules.m15_usage.router import router as usage_router
 from .modules.m16_analytics.router import router as analytics_router
 from .modules.m17_admin.router import router as admin_router
 from .modules.m18_ops.router import router as ops_router
+from .modules.m19_healthcare.admin import router as healthcare_admin_router
+from .modules.m19_healthcare.router import router as healthcare_router
+from .modules.m21_vendors.router import router as vendors_router
+from .modules.m22_consent.recordings import router as recordings_router
 from .modules.m22_consent.router import router as consent_router
+from .modules.m23_audit.router import router as phi_audit_router
+from .modules.m24_retention.router import router as retention_router
+from .modules.m25_evidence.router import router as evidence_router
 
 REQUESTS = Counter("xv_http_requests_total", "HTTP requests", ["method", "route", "status"])
 LATENCY = Histogram("xv_http_request_seconds", "HTTP latency", ["method", "route"])
@@ -127,6 +134,13 @@ def create_app() -> FastAPI:
         billing_admin_router,
         payment_webhooks_router,
         analytics_router,
+        healthcare_router,
+        healthcare_admin_router,
+        vendors_router,
+        recordings_router,
+        phi_audit_router,
+        retention_router,
+        evidence_router,
     ):
         app.include_router(r)
     FastAPIInstrumentor.instrument_app(app, excluded_urls="healthz,readyz,metrics")

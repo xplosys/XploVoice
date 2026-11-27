@@ -43,6 +43,7 @@ class Call(Base):
     campaign_id: Mapped[UUID | None]
     queue_id: Mapped[UUID | None]
     queued_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    content_purged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # Phase 8 retention
 
 
 class CallEvent(Base):
